@@ -1,11 +1,9 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Top, Paragraph, Spacing, Asset } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { SubmitFooter } from '@/components/BottomCTA';
 import { useAppData } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
-import type { RouteState } from '@/lib/types';
 
 interface Step {
   title: string;
@@ -23,55 +21,47 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const { haptic } = useHaptic();
   const { patchSettings } = useAppData();
-  const [step, setStep] = useState(0);
 
-  const isLast = step === STEPS.length - 1;
-  const current = STEPS[step];
-
-  function handlePrimary() {
-    if (!isLast) {
-      haptic('tickWeak');
-      setStep((s) => s + 1);
-      return;
-    }
-
+  function handleStart() {
     haptic('success');
     void patchSettings({ onboardingSeenAt: new Date().toISOString() });
-    navigate('/workplace/new', {
-      replace: true,
-      state: { from: 'onboarding' } satisfies RouteState['/workplace/new'],
-    });
+    navigate('/workplace/new', { replace: true });
   }
 
   return (
     <ScreenScaffold
-      top={<Top title={<Top.TitleParagraph>{current.title}</Top.TitleParagraph>} />}
-      bottom={<SubmitFooter label={isLast ? '시작하기' : '다음'} onClick={handlePrimary} />}
+      top={<Top title={<Top.TitleParagraph>알바페이가드</Top.TitleParagraph>} />}
+      bottom={<SubmitFooter label="시작하기" onClick={handleStart} />}
     >
       <div data-testid="onboarding-step">
-        <Asset.ContentIcon name="iconStarRegular" alt={current.title} />
-        <Spacing size={16} />
-        <Paragraph.Text typography="t3">{current.title}</Paragraph.Text>
-        <Spacing size={8} />
-        <Paragraph.Text typography="t6">{current.description}</Paragraph.Text>
-      </div>
-
-      <Spacing size={24} />
-
-      {/* 단계 인디케이터 — 표시 전용, 탭 불가 */}
-      <div style={{ display: 'flex', gap: 8 }}>
         {STEPS.map((s, i) => (
-          <div
-            key={s.title}
-            aria-hidden="true"
-            style={{
-              height: 6,
-              flex: 1,
-              borderRadius: 999,
-              backgroundColor: i <= step ? 'var(--adaptiveBlue500)' : 'var(--adaptiveGrey200)',
-            }}
-          />
+          <div key={s.title}>
+            <Asset.ContentIcon name="iconStarRegular" alt={s.title} />
+            <Spacing size={12} />
+            <Paragraph.Text typography="t3">{s.title}</Paragraph.Text>
+            <Spacing size={4} />
+            <Paragraph.Text typography="t6">{s.description}</Paragraph.Text>
+            {i < STEPS.length - 1 ? <Spacing size={32} /> : null}
+          </div>
         ))}
+
+        <Spacing size={24} />
+
+        {/* 단계 인디케이터 — 표시 전용, 탭 불가 */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {STEPS.map((s) => (
+            <div
+              key={s.title}
+              aria-hidden="true"
+              style={{
+                height: 6,
+                flex: 1,
+                borderRadius: 999,
+                backgroundColor: 'var(--adaptiveBlue500)',
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       <Spacing size={96} />
