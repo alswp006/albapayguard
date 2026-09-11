@@ -86,10 +86,10 @@ describe("라우팅 배선 + 전역 Provider (진입점 소유)", () => {
       expect(await screen.findByText("기록을 찾을 수 없어요")).toBeInTheDocument();
     });
 
-    it("AC-1[P0]: 정의되지 않은 경로는 NotFound 자리 페이지를 렌더한다", async () => {
+    it("AC-1[P0]: 정의되지 않은 경로는 NotFound 페이지를 렌더한다", async () => {
       renderApp(["/no-such-route-xyz"]);
-      expect(await screen.findByTestId("placeholder-not-found")).toBeInTheDocument();
-      expect(screen.getByText("404")).toBeInTheDocument();
+      expect(await screen.findByTestId("notfound-empty")).toBeInTheDocument();
+      expect(screen.getAllByText("페이지를 찾을 수 없어요").length).toBeGreaterThan(0);
     });
   });
 
@@ -97,7 +97,7 @@ describe("라우팅 배선 + 전역 Provider (진입점 소유)", () => {
     it("AC-2[P0]: onboardingSeenAt이 null이면 '/' 진입 시 '/onboarding'으로 이동한다", async () => {
       // seed 없이 렌더 → DEFAULT_SETTINGS.onboardingSeenAt === null
       renderApp(["/"]);
-      expect(await screen.findByTestId("placeholder-onboarding")).toBeInTheDocument();
+      expect(await screen.findByTestId("onboarding-step")).toBeInTheDocument();
       expect(screen.queryByText("등록된 근무지가 없어요")).not.toBeInTheDocument();
     });
 
@@ -141,7 +141,7 @@ describe("라우팅 배선 + 전역 Provider (진입점 소유)", () => {
 
     it("AC-3: 온보딩 화면에서는 탭바가 숨겨진다", async () => {
       renderApp(["/"]); // seed 없음 → onboarding으로 리다이렉트
-      await screen.findByTestId("placeholder-onboarding");
+      await screen.findByTestId("onboarding-step");
       expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
     });
 
@@ -163,7 +163,7 @@ describe("라우팅 배선 + 전역 Provider (진입점 소유)", () => {
       expect(await screen.findByText("근무지를 추가하면 기록을 남길 수 있어요")).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("tab", { name: "근무지" }));
-      expect(await screen.findByTestId("placeholder-workplace")).toBeInTheDocument();
+      expect(await screen.findByTestId("workplace-empty")).toBeInTheDocument();
     });
   });
 });
