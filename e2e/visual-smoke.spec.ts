@@ -13,6 +13,7 @@ import { test, expect, type Page } from "@playwright/test";
 const ROUTES: { path: string; name: string }[] = [
   { path: "/", name: "home" },
   { path: "/record/new", name: "record-new" },
+  { path: "/breakdown", name: "breakdown" },
   // { path: "/result", name: "result" },   // ← 이 앱의 라우트를 추가
   // { path: "/settings", name: "settings" },
 ];
@@ -33,6 +34,41 @@ async function seed(page: Page): Promise<void> {
           colorToken: "blue",
           createdAt: "2026-01-01T00:00:00.000Z",
           updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ]),
+    );
+    // /breakdown이 빈 상태가 아니라 실제 항목 내역을 렌더하도록 이번 달 기록 시드
+    // (하드코딩 날짜 대신 실행 시점 기준으로 생성 — 스모크가 실제 시각에 돈다).
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const ym = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+    const iso = "2026-01-01T00:00:00.000Z";
+    window.localStorage.setItem(
+      "apg:records:v1",
+      JSON.stringify([
+        {
+          id: "r-1",
+          workplaceId: "wp-1",
+          date: `${ym}-15`,
+          startTime: "09:00",
+          endTime: "18:00",
+          breakMinutes: 60,
+          isHoliday: false,
+          memo: "",
+          createdAt: iso,
+          updatedAt: iso,
+        },
+        {
+          id: "r-2",
+          workplaceId: "wp-1",
+          date: `${ym}-16`,
+          startTime: "09:00",
+          endTime: "18:00",
+          breakMinutes: 60,
+          isHoliday: false,
+          memo: "",
+          createdAt: iso,
+          updatedAt: iso,
         },
       ]),
     );

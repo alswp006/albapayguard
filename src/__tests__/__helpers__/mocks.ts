@@ -32,9 +32,19 @@ export function mockTds() {
     FixedBottomCTA: ({ children, onClick, disabled, loading, ...props }: any) =>
       React.createElement("button", { onClick, disabled: disabled || loading || undefined, "data-loading": loading ? "true" : undefined, ...props }, children),
 
+    // 실제 TDS ListRow는 children이 아니라 contents/left/right prop으로 내용을 받는다(essential.txt
+    // "❌ texts prop 없음 — contents prop 사용"). 이 prop들을 렌더하지 않으면 textContent가 항상 빈
+    // 문자열이 되어 ListRow 내부 금액/라벨을 검증하는 모든 테스트가 거짓으로 통과·실패한다.
     ListRow: Object.assign(
-      ({ children, onClick, ...props }: any) =>
-        React.createElement("div", { onClick, role: "listitem", ...props }, children),
+      ({ children, contents, left, right, onClick, ...props }: any) =>
+        React.createElement(
+          "div",
+          { onClick, role: "listitem", ...props },
+          left,
+          contents,
+          children,
+          right,
+        ),
       {
         Text: ({ children }: any) => React.createElement("span", null, children),
         Texts: ({ top, bottom, type }: any) =>
