@@ -16,8 +16,8 @@ export default function Workplace() {
 
   const incomingToast = (location.state as RouteState['/workplace'])?.toast;
   const [savedToastOpen, setSavedToastOpen] = useState(Boolean(incomingToast));
-  const [limitToastOpen, setLimitToastOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const atLimit = workplaces.length >= MAX_WORKPLACES;
 
   useEffect(() => {
     if (incomingToast) setSavedToastOpen(true);
@@ -32,11 +32,7 @@ export default function Workplace() {
   }
 
   function handleAdd() {
-    if (workplaces.length >= MAX_WORKPLACES) {
-      haptic('tickWeak');
-      setLimitToastOpen(true);
-      return;
-    }
+    if (atLimit) return;
     haptic('tickWeak');
     navigate('/workplace/new');
   }
@@ -120,16 +116,28 @@ export default function Workplace() {
 
           <Spacing size={16} />
 
-          <Button variant="weak" display="block" onClick={handleAdd} data-testid="workplace-add-button">
+          <Button
+            variant="weak"
+            display="block"
+            disabled={atLimit}
+            onClick={handleAdd}
+            data-testid="workplace-add-button"
+          >
             근무지 추가하기
           </Button>
+          {atLimit && (
+            <>
+              <Spacing size={8} />
+              <Paragraph.Text typography="st13">근무지는 최대 5개까지 등록할 수 있어요</Paragraph.Text>
+            </>
+          )}
         </>
       )}
 
       <Spacing size={32} />
 
       <Paragraph.Text typography="st13">
-        급여 기록은 이 기기에만 저장돼요. 앱 삭제나 브라우저 데이터 삭제 시 함께 사라져요
+        데이터는 이 기기에만 저장돼요. 앱이나 브라우저 데이터를 지우면 사라져요
       </Paragraph.Text>
 
       <Spacing size={24} />
@@ -152,13 +160,6 @@ export default function Workplace() {
         text={incomingToast ?? ''}
         duration={3000}
         onClose={() => setSavedToastOpen(false)}
-      />
-      <Toast
-        open={limitToastOpen}
-        position="bottom"
-        text="근무지는 최대 5개까지 등록할 수 있어요"
-        duration={3000}
-        onClose={() => setLimitToastOpen(false)}
       />
     </ScreenScaffold>
   );
