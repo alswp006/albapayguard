@@ -300,8 +300,14 @@ export function mockAppsInToss() {
 // ── Toss Reward Ad Component ──
 // TossRewardAd is a project-local component that wraps content behind ad viewing.
 // In tests, render the children directly (ad always "watched").
+// NOTE: uses vi.doMock (not vi.mock) deliberately — same reasoning as mockRouter below.
+// A plain vi.mock(...) here would hoist to the top of this file and register the
+// moment ANY test imports this module (even just mockTds()), silently auto-mocking
+// TossRewardAd for tests that want the REAL component (e.g. reward-ad-gate scenarios)
+// and never call mockTossRewardAd() themselves (observed 2026-09-12: made
+// packet-0013's real-gate assertions permanently fail regardless of page correctness).
 export function mockTossRewardAd() {
-  vi.mock("@/components/TossRewardAd", () => ({
+  vi.doMock("@/components/TossRewardAd", () => ({
     TossRewardAd: ({ children, onReward }: any) => {
       // Auto-trigger onReward in tests to unlock content
       if (onReward) setTimeout(onReward, 0);
