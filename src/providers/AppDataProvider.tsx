@@ -61,6 +61,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [corruptToastOpen, setCorruptToastOpen] = useState(false);
   const [quotaToastOpen, setQuotaToastOpen] = useState(false);
+  const [deleteFailToastOpen, setDeleteFailToastOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,8 +129,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       setWorkplaces((prev) => prev.filter((w) => w.id !== id));
       setRecords((prev) => prev.filter((r) => r.workplaceId !== id));
       setPayChecks((prev) => prev.filter((p) => p.workplaceId !== id));
+      setSettings((prev) => {
+        if (prev.activeWorkplaceId !== id) return prev;
+        // F1 AC-9: 활성 근무지 삭제 시 createdAt 오름차순 첫 근무지로 재지정(repository.deleteWorkplace가
+        // 이미 storage에 반영했다 — 로컬 상태도 동일 규칙으로 맞춘다).
+        const remaining = workplaces
+          .filter((w) => w.id !== id)
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        return { ...prev, activeWorkplaceId: remaining[0]?.id ?? null };
+      });
     } else {
-      flagWriteFailure(result.reason);
+      setDeleteFailToastOpen(true);
     }
     return result;
   }
@@ -247,6 +257,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         text="저장 공간이 부족합니다. 오래된 기록을 삭제해주세요"
         duration={3000}
         onClose={() => setQuotaToastOpen(false)}
+      />
+      <Toast
+        open={deleteFailToastOpen}
+        position="bottom"
+        text="삭제하지 못했어요. 다시 시도해주세요"
+        duration={3000}
+        onClose={() => setDeleteFailToastOpen(false)}
       />
     </AppDataContext.Provider>
   );

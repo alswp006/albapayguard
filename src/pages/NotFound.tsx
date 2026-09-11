@@ -1,11 +1,24 @@
-// @ai-factory:placeholder
-// 배선 선행(wiring-first)이 깐 자리 페이지다 — App.tsx에 `*`로 이미 연결돼 있다.
-// 이 화면을 담당하는 패킷은 이 파일을 **통째로 교체**하라(위 마커 주석 포함 — 마커가 남으면 산출물로 인정되지 않는다).
+import { useNavigate } from 'react-router-dom';
+import { Top, Paragraph, Spacing, Button, Asset } from '@toss/tds-mobile';
+import { ScreenScaffold } from '@/components/ScreenScaffold';
+
 export default function NotFound() {
+  const navigate = useNavigate();
+
   return (
-    <main data-testid="placeholder-not-found">
-      <h1>404</h1>
-      <p>이 화면은 준비 중이에요.</p>
-    </main>
+    <ScreenScaffold top={<Top title={<Top.TitleParagraph>페이지 없음</Top.TitleParagraph>} />}>
+      <div
+        data-testid="not-found"
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '48px 24px' }}
+      >
+        <Asset.ContentIcon name="iconStarRegular" alt="404" />
+        <Spacing size={12} />
+        <Paragraph.Text typography="t4">페이지를 찾을 수 없어요</Paragraph.Text>
+        <Spacing size={20} />
+        <Button variant="fill" display="block" onClick={() => navigate('/', { replace: true })}>
+          홈으로
+        </Button>
+      </div>
+    </ScreenScaffold>
   );
 }

@@ -34,7 +34,7 @@ describe("라우팅 배선 + 전역 Provider (진입점 소유)", () => {
       seedSettings({ onboardingSeenAt: "2026-09-01T00:00:00.000Z" });
       renderApp(["/"]);
       expect(await screen.findByText("등록된 근무지가 없어요")).toBeInTheDocument();
-      expect(screen.queryByTestId("placeholder-onboarding")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("onboarding-step")).not.toBeInTheDocument();
     });
 
     it("AC-1: '/breakdown'은 Breakdown 페이지를 렌더한다", async () => {
@@ -68,9 +68,10 @@ describe("라우팅 배선 + 전역 Provider (진입점 소유)", () => {
       expect(screen.getByText("근무지를 추가하면 기록을 남길 수 있어요")).toBeInTheDocument();
     });
 
-    it("AC-1: '/workplace'는 근무지 자리 페이지를 렌더한다", async () => {
+    it("AC-1: '/workplace'는 근무지 목록 페이지를 렌더한다", async () => {
+      seedSettings({ onboardingSeenAt: "2026-09-01T00:00:00.000Z" });
       renderApp(["/workplace"]);
-      expect(await screen.findByTestId("placeholder-workplace")).toBeInTheDocument();
+      expect(await screen.findByTestId("workplace-empty")).toBeInTheDocument();
     });
 
     it("AC-1: '/record/new'는 RecordForm(신규 작성)을 렌더한다", async () => {

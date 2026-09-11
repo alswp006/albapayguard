@@ -75,30 +75,47 @@ export async function updateWorkplace(
 }
 
 export async function deleteWorkplace(id: string): Promise<{ ok: boolean; reason?: string }> {
-  const workplaces = readRaw(STORAGE_KEYS.WORKPLACES, [], isWorkplaceArray);
-  const nextWorkplaces = workplaces.filter((w) => w.id !== id);
+  // F1 AC-3: workplaces/records/payChecks/settings 중 어느 하나라도 쓰기 실패하면
+  // 세 키(workplaces/records/payChecks) 모두 삭제 전 값으로 롤백한다 — 그래서 각 키를
+  // 쓰기 전 스냅샷으로 남겨두고, 실패 시 전부 되쓴다.
+  const workplacesSnapshot = readRaw(STORAGE_KEYS.WORKPLACES, [], isWorkplaceArray);
+  const recordsSnapshot = readRaw(STORAGE_KEYS.RECORDS, [], isRecordArray);
+  const payChecksSnapshot = readRaw(STORAGE_KEYS.PAYCHECKS, [], isPayCheckArray);
+
+  const nextWorkplaces = workplacesSnapshot.filter((w) => w.id !== id);
+  const nextRecords = recordsSnapshot.filter((r) => r.workplaceId !== id);
+  const nextPayChecks = payChecksSnapshot.filter((p) => p.workplaceId !== id);
+
+  function rollback(): void {
+    writeRaw(STORAGE_KEYS.WORKPLACES, workplacesSnapshot);
+    writeRaw(STORAGE_KEYS.RECORDS, recordsSnapshot);
+    writeRaw(STORAGE_KEYS.PAYCHECKS, payChecksSnapshot);
+  }
+
   const writeWorkplaces = writeRaw(STORAGE_KEYS.WORKPLACES, nextWorkplaces);
   if (!writeWorkplaces.ok) return { ok: false, reason: writeWorkplaces.reason ?? 'unknown' };
 
-  const records = readRaw(STORAGE_KEYS.RECORDS, [], isRecordArray);
-  const writeRecords = writeRaw(
-    STORAGE_KEYS.RECORDS,
-    records.filter((r) => r.workplaceId !== id)
-  );
-  if (!writeRecords.ok) return { ok: false, reason: writeRecords.reason ?? 'unknown' };
+  const writeRecords = writeRaw(STORAGE_KEYS.RECORDS, nextRecords);
+  if (!writeRecords.ok) {
+    rollback();
+    return { ok: false, reason: writeRecords.reason ?? 'unknown' };
+  }
 
-  const payChecks = readRaw(STORAGE_KEYS.PAYCHECKS, [], isPayCheckArray);
-  const writePayChecks = writeRaw(
-    STORAGE_KEYS.PAYCHECKS,
-    payChecks.filter((p) => p.workplaceId !== id)
-  );
-  if (!writePayChecks.ok) return { ok: false, reason: writePayChecks.reason ?? 'unknown' };
+  const writePayChecks = writeRaw(STORAGE_KEYS.PAYCHECKS, nextPayChecks);
+  if (!writePayChecks.ok) {
+    rollback();
+    return { ok: false, reason: writePayChecks.reason ?? 'unknown' };
+  }
 
   const settings = readRaw(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS, isSettingsObject);
   if (settings.activeWorkplaceId === id) {
-    const nextActive = nextWorkplaces[0]?.id ?? null;
+    const sorted = [...nextWorkplaces].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const nextActive = sorted[0]?.id ?? null;
     const writeSettings = writeRaw(STORAGE_KEYS.SETTINGS, { ...settings, activeWorkplaceId: nextActive });
-    if (!writeSettings.ok) return { ok: false, reason: writeSettings.reason ?? 'unknown' };
+    if (!writeSettings.ok) {
+      rollback();
+      return { ok: false, reason: writeSettings.reason ?? 'unknown' };
+    }
   }
 
   return { ok: true };
@@ -277,7 +294,7 @@ export function validateWorkplace(input: { name: string; hourlyWage: number }): 
     return '근무지 이름을 입력해주세요';
   }
   if (!input.hourlyWage || input.hourlyWage <= 0) {
-    return '시급을 정확히 입력해주세요';
+    return '시급을 1원 이상 입력해주세요';
   }
   return null;
 }
