@@ -6,7 +6,6 @@ import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { Card } from '@/components/Card';
 import { Amount } from '@/components/Amount';
 import { EmptyState, LoadingState } from '@/components/StateView';
-import { SubmitFooter } from '@/components/BottomCTA';
 import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
 import { formatNumber } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
@@ -141,6 +140,9 @@ export default function Check() {
   }
 
   function handleAnalyze() {
+    // 하단 고정 CTA(SubmitFooter)가 자동으로 쏘던 햅틱을 여기서 직접 쏜다 —
+    // '/check'는 탭 루트라 고정 CTA를 쓰면 FloatingTabBar와 겹친다(본문 내 전체폭 버튼으로 대체).
+    fireHaptic('success');
     const amount = parseAmount(amountDisplay);
     if (Number.isNaN(amount) || amount < 0 || amount > MAX_AMOUNT) {
       setAmountError(true);
@@ -182,16 +184,7 @@ export default function Check() {
   }
 
   return (
-    <ScreenScaffold
-      top={<Top title={<Top.TitleParagraph>미지급 분석</Top.TitleParagraph>} />}
-      bottom={
-        <SubmitFooter
-          label="분석하기"
-          onClick={handleAnalyze}
-          disabled={!workplaceId || !hasRecords}
-        />
-      }
-    >
+    <ScreenScaffold top={<Top title={<Top.TitleParagraph>미지급 분석</Top.TitleParagraph>} />}>
       <Paragraph.Text typography="st6">근무지</Paragraph.Text>
       <Spacing size={8} />
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
@@ -267,6 +260,17 @@ export default function Check() {
       <Spacing size={8} />
 
       <Paragraph.Text typography="st11">통장에 입금된 금액을 그대로 적어주세요</Paragraph.Text>
+
+      <Spacing size={24} />
+
+      <Button
+        variant="fill"
+        display="block"
+        onClick={handleAnalyze}
+        disabled={!workplaceId || !hasRecords}
+      >
+        분석하기
+      </Button>
 
       <Spacing size={16} />
     </ScreenScaffold>

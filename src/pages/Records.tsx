@@ -167,7 +167,7 @@ export default function Records() {
 
   if (loading) {
     return (
-      <ScreenScaffold top={<Top title={<Top.TitleParagraph>기록</Top.TitleParagraph>} />}>
+      <ScreenScaffold top={<Top title={<Top.TitleParagraph>기록 목록</Top.TitleParagraph>} />}>
         <LoadingState rows={5} testId="records-loading" />
       </ScreenScaffold>
     );
@@ -175,7 +175,7 @@ export default function Records() {
 
   if (workplaces.length === 0) {
     return (
-      <ScreenScaffold top={<Top title={<Top.TitleParagraph>기록</Top.TitleParagraph>} />}>
+      <ScreenScaffold top={<Top title={<Top.TitleParagraph>기록 목록</Top.TitleParagraph>} />}>
         <EmptyState
           icon={<Asset.ContentIcon name="iconStarRegular" alt="근무지" />}
           title="등록된 근무지가 없어요"
@@ -200,7 +200,7 @@ export default function Records() {
   const workedHours = Math.floor((payroll?.totalMinutes ?? 0) / 60);
 
   return (
-    <ScreenScaffold top={<Top title={<Top.TitleParagraph>기록</Top.TitleParagraph>} />}>
+    <ScreenScaffold top={<Top title={<Top.TitleParagraph>기록 목록</Top.TitleParagraph>} />}>
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
         {workplaces.map((w) => (
           <ChipButton key={w.id} selected={w.id === workplaceId} onClick={() => handleSelectWorkplace(w.id)}>

@@ -16,8 +16,9 @@ const ROUTES: { path: string; name: string }[] = [
   { path: "/breakdown", name: "breakdown" },
   { path: "/check", name: "check" },
   { path: "/records", name: "records" },
-  // { path: "/result", name: "result" },   // ← 이 앱의 라우트를 추가
-  // { path: "/settings", name: "settings" },
+  { path: "/workplace", name: "workplace" },
+  { path: "/workplace/new", name: "workplace-new" },
+  { path: "/no-such-route", name: "not-found" },
 ];
 
 /** 데이터가 필요한 화면용 localStorage 시드(앱에 맞게 채워라). 앱 스크립트보다 먼저 실행된다. */
@@ -41,6 +42,17 @@ async function seed(page: Page): Promise<void> {
     );
     // /breakdown이 빈 상태가 아니라 실제 항목 내역을 렌더하도록 이번 달 기록 시드
     // (하드코딩 날짜 대신 실행 시점 기준으로 생성 — 스모크가 실제 시각에 돈다).
+    // 온보딩을 이미 본 상태로 시드 — 아니면 '/'가 /onboarding으로 리다이렉트돼 홈 샷이 안 나온다.
+    window.localStorage.setItem(
+      "apg:settings:v1",
+      JSON.stringify({
+        onboardingSeenAt: "2026-01-01T00:00:00.000Z",
+        disclaimerAckAt: "2026-01-01T00:00:00.000Z",
+        activeWorkplaceId: "wp-1",
+        rewardUnlocks: {},
+        schemaVersion: 1,
+      }),
+    );
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     const ym = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;

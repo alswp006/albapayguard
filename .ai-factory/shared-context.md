@@ -45,6 +45,14 @@ export type useHapticFn = () => { pulse: (pattern?: 'light' | 'medium' | 'heavy'
 
 ```
 
+## ⏳ 시간 예약으로 미뤄진 화면 — 자리 페이지로만 존재한다(실패가 아니라 미룸)
+다음 화면 패킷은 시간 예약으로 미뤄져 이 밤에는 만들어지지 않는다. 스캐폴드(배선 선행)가 이 화면들을
+**"준비 중" 자리 페이지로 이미 import·라우트해 두었다** — 컴파일된다:
+- 0015 "[부가] 근무지 목록·등록·수정 페이지 `/workplace`" (src/pages/Workplace.tsx, src/pages/WorkplaceForm.tsx)
+- 0016 "[부가] 온보딩 `/onboarding` · 404 페이지" (src/pages/Onboarding.tsx, src/pages/NotFound.tsx)
+- **Route·import는 그대로 두어라.** 지우지도 말고 새로 채우지도 마라 — 자리 페이지(첫 줄 `@ai-factory:placeholder`)는 그 화면 패킷의 몫이다.
+- 존재하는(실속) 화면만 배선·연결하고, 테스트·검증 범위도 실속 화면으로 좁혀라 — 자리 페이지의 내용·동작을 검증하는 테스트는 게이트에서 막힌다.
+
 ## Shared Types Contract (IMPORT these, do NOT redefine)
 ```typescript
 // 도메인 타입 & 상수 — 순수 타입 정의 전용 (런타임 로직은 상수 선언 외 금지)
@@ -250,11 +258,9 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0008: 상태 관리 — AppDataProvider (React Context) (files: src/providers/AppDataProvider.tsx, src/hooks/useAppData.ts)
 - 0011: 급여 상세 페이지 `/breakdown` (files: src/pages/Breakdown.tsx)
 - 0012: 미지급 분석 입력 페이지 `/check` (files: src/pages/Check.tsx)
+- 0014: [부가] 기록 목록 페이지 `/records` (files: src/pages/Records.tsx)
 
 ## Available exports from existing files
-// src/App.tsx
-export default function App() {
-
 // src/components/AdSlot.tsx
 export function AdSlot({ adGroupId, className, variant, theme }: AdSlotProps) {
 
@@ -317,7 +323,7 @@ export function parseWon(value: string): number {
 
 // src/lib/contract.ts
 export type RouteState = { section: 'home' | 'record' | 'breakdown' | 'check' | 'checkResult' | 'records' | 'workplace'; recordId?: string; month?: string };
-export type Record = { id: string; workplaceId: string; da
+export type Record = { id: string; workplaceId: string; date: string; hoursWorked: number; hourlyRate: num
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 
