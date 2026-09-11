@@ -17,29 +17,15 @@ import {
  * - Type guards: isWorkplaceArray, isRecordArray, isPayCheckArray, isSettingsObject
  */
 
-// Mock implementations (will be replaced by actual src/lib/storage.ts)
-interface ReadRawOptions<T> {
-  key: string;
-  fallback: T;
-  isValid: (data: unknown) => data is T;
-}
-
-interface WriteRawResult {
-  ok: boolean;
-  reason?: "quota" | "size";
-}
-
-let readRaw: <T>(
-  key: string,
-  fallback: T,
-  isValid: (data: unknown) => data is T
-) => T;
-let writeRaw: (key: string, value: unknown) => WriteRawResult;
-let consumeCorruptionFlag: () => boolean;
-let isWorkplaceArray: (data: unknown) => data is Workplace[];
-let isRecordArray: (data: unknown) => data is WorkRecord[];
-let isPayCheckArray: (data: unknown) => data is PayCheck[];
-let isSettingsObject: (data: unknown) => data is AppSettings;
+import {
+  readRaw,
+  writeRaw,
+  consumeCorruptionFlag,
+  isWorkplaceArray,
+  isRecordArray,
+  isPayCheckArray,
+  isSettingsObject,
+} from "@/lib/storage";
 
 describe("Storage Raw I/O — Corruption Recovery & Write Guard", () => {
   beforeEach(() => {
@@ -231,8 +217,9 @@ describe("Storage Raw I/O — Corruption Recovery & Write Guard", () => {
       const value = { data: "test" };
 
       // Mock localStorage to throw QuotaExceededError
-      const originalSetItem = localStorage.setItem;
-      localStorage.setItem = vi.fn(() => {
+      // (jsdom's Storage is Proxy-backed — direct `localStorage.setItem = fn`
+      // assignment is silently swallowed, so spy on the prototype instead)
+      const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
         const error = new Error("QuotaExceededError");
         error.name = "QuotaExceededError";
         throw error;
@@ -244,7 +231,7 @@ describe("Storage Raw I/O — Corruption Recovery & Write Guard", () => {
       expect(result.reason).toBe("quota");
 
       // Restore
-      localStorage.setItem = originalSetItem;
+      spy.mockRestore();
     });
 
     it("should writeRaw NOT throw, handle quota silently in backup scenario", () => {
@@ -252,18 +239,20 @@ describe("Storage Raw I/O — Corruption Recovery & Write Guard", () => {
       const corruptedData = '{"invalid": true}';
       localStorage.setItem(key, corruptedData);
 
-      const originalSetItem = localStorage.setItem;
+      const originalSetItem = Storage.prototype.setItem;
       let setItemCallCount = 0;
-      localStorage.setItem = vi.fn((k, v) => {
-        setItemCallCount++;
-        // Fail on backup write (second call), succeed on restore
-        if (setItemCallCount === 1 && k.includes(":corrupt:")) {
-          const error = new Error("QuotaExceededError");
-          error.name = "QuotaExceededError";
-          throw error;
-        }
-        originalSetItem.call(localStorage, k, v);
-      });
+      const spy = vi
+        .spyOn(Storage.prototype, "setItem")
+        .mockImplementation(function (this: Storage, k: string, v: string) {
+          setItemCallCount++;
+          // Fail on backup write (first call), succeed on restore
+          if (setItemCallCount === 1 && k.includes(":corrupt:")) {
+            const error = new Error("QuotaExceededError");
+            error.name = "QuotaExceededError";
+            throw error;
+          }
+          originalSetItem.call(this, k, v);
+        });
 
       const fallback: Workplace[] = [];
 
@@ -273,7 +262,7 @@ describe("Storage Raw I/O — Corruption Recovery & Write Guard", () => {
       }).not.toThrow();
 
       // Restore
-      localStorage.setItem = originalSetItem;
+      spy.mockRestore();
     });
 
     it("should writeRaw return {ok: true} on successful write", () => {
