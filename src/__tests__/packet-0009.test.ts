@@ -303,3 +303,84 @@ describe("홈 대시보드 `/`", () => {
     expect(document.body.textContent ?? "").not.toMatch(/NaN|undefined/);
   });
 });
+
+// 레이아웃 계약 — 행위 테스트만으로는 조용히 무너지는 비주얼 구조를 고정한다.
+describe("홈 대시보드 레이아웃", () => {
+  /** 1월 1~6일 기록 6건 — '최근 5건'만 보이는지 확인용 */
+  const SIX_RECORDS: WorkRecord[] = Array.from({ length: 6 }, (_, i) => ({
+    ...REC1,
+    id: `r-${i + 1}`,
+    date: `2026-01-0${i + 1}`,
+    createdAt: `2026-01-0${i + 1}T00:00:00.000Z`,
+    updatedAt: `2026-01-0${i + 1}T00:00:00.000Z`,
+  }));
+
+  it("Layout: 최근 기록 카드는 최신순 5건만 렌더한다", () => {
+    scenario.workplaces = [WP1];
+    scenario.records = SIX_RECORDS;
+    scenario.activeWorkplaceId = "wp-1";
+
+    renderHome();
+
+    const card = screen.getByTestId("recent-records-card");
+    const rows = card.querySelectorAll('[role="listitem"]');
+    expect(rows.length).toBe(5);
+    // 가장 최근(1월 6일)이 첫 행, 가장 오래된 1월 1일은 잘려나간다
+    expect(rows[0].textContent).toContain("1월 6일");
+    expect(card.textContent).not.toContain("1월 1일");
+  });
+
+  it("Layout: 광고 배너는 최근 기록 카드·기록 추가 CTA보다 아래에 온다", () => {
+    scenario.workplaces = [WP1];
+    scenario.records = [REC1];
+    scenario.activeWorkplaceId = "wp-1";
+
+    renderHome();
+
+    const card = screen.getByTestId("recent-records-card");
+    const cta = screen.getByTestId("cta-add-record");
+    const ad = screen.getByTestId("home-ad-slot");
+
+    // compareDocumentPosition: FOLLOWING(4) = 인자가 기준 노드보다 문서상 뒤에 있다
+    expect(card.compareDocumentPosition(cta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(cta.compareDocumentPosition(ad) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("Layout: 1차 CTA는 전체폭(display=block)이고 기록 0건에도 노출된다", () => {
+    scenario.workplaces = [WP1];
+    scenario.records = [];
+    scenario.activeWorkplaceId = "wp-1";
+
+    renderHome();
+
+    const cta = screen.getByTestId("cta-add-record");
+    expect(cta).toHaveAttribute("display", "block");
+    expect(screen.queryByTestId("recent-records-card")).not.toBeInTheDocument();
+    expect(screen.getByTestId("home-empty-records")).toBeInTheDocument();
+  });
+
+  it("Layout: 히어로·추이·비중 시각화가 기록이 있을 때 모두 렌더된다", () => {
+    scenario.workplaces = [WP1];
+    scenario.records = SIX_RECORDS;
+    scenario.activeWorkplaceId = "wp-1";
+
+    renderHome();
+
+    expect(screen.getByTestId("pay-hero")).toBeInTheDocument();
+    expect(screen.getByTestId("pay-trend-sparkline")).toBeInTheDocument();
+    expect(screen.getByTestId("pay-composition-bar-base")).toBeInTheDocument();
+    expect(screen.getByTestId("pay-composition-bar-weekly")).toBeInTheDocument();
+    expect(screen.getByTestId("pay-composition-bar-extra")).toBeInTheDocument();
+  });
+
+  it("최근 기록 행을 탭하면 해당 기록 수정 화면으로 이동한다", () => {
+    scenario.workplaces = [WP1];
+    scenario.records = [REC1];
+    scenario.activeWorkplaceId = "wp-1";
+
+    renderHome();
+
+    fireEvent.click(screen.getByTestId("recent-record-r-1"));
+    expect(mockNavigate).toHaveBeenCalledWith("/record/r-1/edit");
+  });
+});

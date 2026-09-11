@@ -187,7 +187,9 @@ export interface MonthlyPayroll {
     Card.tsx
     CountUp.tsx
     FloatingTabBar.tsx
+    LegalNotice.tsx
     MiniBar.tsx
+    MonthNav.tsx
     PageShell.tsx
     ScreenScaffold.tsx
     Sparkline.tsx
@@ -197,6 +199,7 @@ export interface MonthlyPayroll {
     TossRewardAd.tsx
   hooks/
     useAppData.ts
+    useHaptic.ts
   lib/
     analysis.ts
     contract.ts
@@ -242,10 +245,7 @@ export interface MonthlyPayroll {
 ### Components (src/components/)
 - AdSlot.tsx: AdSlot
 - Amount.tsx: Amount
-- BottomCTA.tsx: SubmitFooter, ButtonStack
-- Card.tsx: Card
-- CountUp.tsx: CountUp
-- FloatingTab...
+- BottomCTA.tsx: SubmitFooter, ButtonStack...
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
@@ -261,6 +261,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0012: 미지급 분석 입력 페이지 `/check` (files: src/pages/Check.tsx)
 - 0014: [부가] 기록 목록 페이지 `/records` (files: src/pages/Records.tsx)
 - 0017: 라우팅 배선 + 전역 Provider (진입점 소유) (files: src/App.tsx)
+- 0018: 광고·햅틱 헬퍼 컴포넌트 + 최종 UX 폴리시 (files: src/components/MonthNav.tsx, src/components/LegalNotice.tsx, src/hooks/useHaptic.ts)
 
 ## Available exports from existing files
 // src/App.tsx
@@ -286,8 +287,11 @@ export function CountUp({
 export type TabItem = {
 export function FloatingTabBar({ items }: { items: TabItem[] }) {
 
-// src/components/MiniBar.tsx
-export function MiniBar({
+// src/components/LegalNotice.tsx
+export const LEGAL_NOTICE_TEXT = '법정 기준 자동 계산 결과이며 법적 효력이 없습니다';
+export interface LegalNoticeProps {
+export function LegalNotice({ testId }: LegalNoticeProps) {
+export default LegalNotice;
 
 // src/components/PageShell.tsx
 export function PageShell({ children, style }: { children: ReactNode; style?: CSSProperties }) {
@@ -295,15 +299,9 @@ export function PageShell({ children, style }: { children: ReactNode; style?: CS
 // src/components/ScreenScaffold.tsx
 export function ScreenScaffold({
 
-// src/components/Sparkline.tsx
-export function Sparkline({
-
 // src/components/StateView.tsx
 export function EmptyState({
 export function LoadingState({
-
-// src/components/SummaryHero.tsx
-export function SummaryHero({
 
 // src/components/TossPurchase.tsx
 export interface TossPurchaseResult {
@@ -316,6 +314,11 @@ export function TossRewardAd({
 export function useAppData(): AppDataContextValue {
 export function useMonthlyPayroll(
 
+// src/hooks/useHaptic.ts
+export type HapticType = 'success' | 'tickWeak';
+export function useHaptic() {
+export default useHaptic;
+
 // src/lib/analysis.ts
 export interface PayrollForAnalysis {
 export interface PayAnalysisResult {
@@ -327,8 +330,7 @@ export function formatWon(amount: number): string {
 export function parseWon(value: string): number {
 
 // src/lib/contract.ts
-export type RouteState = { section: 'home' | 'record' | 'breakdown' | 'check' | 'checkResult' | 'records' | 'workplace'; recordId?: string; month?: string };
-export type Record = { id: string; workplaceId: string; da
+export type RouteState = { section: 'home' 
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 

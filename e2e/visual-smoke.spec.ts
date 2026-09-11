@@ -126,7 +126,19 @@ for (const route of ROUTES) {
     // 4) 콘솔 에러 0 (알려진 dev 에러 제외) — 토스 검수는 console.error 0개 요구
     expect(errors, `${route.name}: 콘솔 에러`).toEqual([]);
 
-    // 5) 스크린샷 저장 → 끝내기 전 직접 열어 자가 리뷰(휑함/솔리드 알약 탭/부유 CTA/앵커 없음)
+    // 5) 하단 탭바가 본문 마지막 요소(홈: 광고 배너)를 가리지 않는가 — 겹침 0px.
+    //    fullPage 스크린샷은 position:fixed 요소를 한 번만 그려 겹쳐 보이므로 눈으로는 판별 불가.
+    if (route.path === "/") {
+      await page.locator("body").evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await page.waitForTimeout(300);
+      const nav = await page.locator('nav[role="tablist"]').boundingBox();
+      const ad = await page.getByTestId("home-ad-slot").boundingBox();
+      if (nav && ad) {
+        expect(ad.y + ad.height, `${route.name}: 광고 배너가 탭바와 겹침`).toBeLessThanOrEqual(nav.y);
+      }
+    }
+
+    // 6) 스크린샷 저장 → 끝내기 전 직접 열어 자가 리뷰(휑함/솔리드 알약 탭/부유 CTA/앵커 없음)
     await page.screenshot({ path: `e2e/__shots__/${route.name}.png`, fullPage: true });
   });
 }
