@@ -19,7 +19,29 @@ import {
 } from "@/lib/repository";
 import * as storage from "@/lib/storage";
 
+// storage.ts의 실제 계약(packet 0002, src/lib/storage.ts로 검증됨)은 동기 함수다:
+// readRaw<T>(key, fallback, isValid): T / writeRaw(key, value): {ok, reason?: 'quota'|'size'}
+// 아래 목은 그 실제 시그니처에 맞춰 가짜 영속 저장소를 흉내낸다.
 vi.mock("@/lib/storage");
+
+function setupFakeStorage() {
+  const store: Record<string, unknown> = {};
+
+  vi.mocked(storage.readRaw).mockImplementation(((key: string, fallback: unknown) => {
+    return key in store ? store[key] : fallback;
+  }) as typeof storage.readRaw);
+
+  vi.mocked(storage.writeRaw).mockImplementation(((key: string, value: unknown) => {
+    store[key] = value;
+    return { ok: true };
+  }) as typeof storage.writeRaw);
+
+  vi.mocked(storage.getItem).mockImplementation(((key: string) => {
+    return key in store ? store[key] : null;
+  }) as typeof storage.getItem);
+
+  return store;
+}
 
 describe("Collection Repository · Validation · Schema Migration", () => {
   beforeEach(() => {
@@ -32,56 +54,56 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   // ─────────────────────────────────────────────────────────────
 
   it("AC-1[P0]: updateWorkplace should preserve createdAt and update updatedAt", async () => {
+    const store = setupFakeStorage();
     const workplaceId = "wp-1";
-    const originalCreatedAt = new Date("2026-03-01T10:00:00Z").getTime();
-    const originalWorkplace = {
-      id: workplaceId,
-      name: "Original",
-      hourlyWage: 10000,
-      createdAt: originalCreatedAt,
-      updatedAt: originalCreatedAt,
-    };
-
-    const newUpdatedTime = originalCreatedAt + 60000; // 1 minute later
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: [originalWorkplace],
-    });
-    vi.mocked(storage.writeRaw).mockResolvedValueOnce({ ok: true });
+    const originalCreatedAt = new Date("2026-03-01T10:00:00.000Z").toISOString();
+    store["apg:workplaces:v1"] = [
+      {
+        id: workplaceId,
+        name: "Original",
+        hourlyWage: 10000,
+        isFiveOrMore: false,
+        payday: 25,
+        taxType: "none",
+        colorToken: "blue",
+        createdAt: originalCreatedAt,
+        updatedAt: originalCreatedAt,
+      },
+    ];
 
     const result = await updateWorkplace(workplaceId, { hourlyWage: 12000 });
 
     expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
     expect(result.createdAt).toBe(originalCreatedAt);
-    expect(result.updatedAt).toBeGreaterThan(originalCreatedAt);
+    expect(new Date(result.updatedAt).getTime()).toBeGreaterThan(new Date(originalCreatedAt).getTime());
     expect(result.hourlyWage).toBe(12000);
     expect(result.name).toBe("Original"); // unchanged field preserved
   });
 
   it("AC-1b[P0]: updateWorkplace should return writeRaw error without throwing", async () => {
+    setupFakeStorage();
     const workplaceId = "wp-1";
-    const originalWorkplace = {
-      id: workplaceId,
-      name: "Test",
-      hourlyWage: 10000,
-      createdAt: 1000,
-      updatedAt: 1000,
-    };
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: [originalWorkplace],
-    });
-    vi.mocked(storage.writeRaw).mockResolvedValueOnce({
-      ok: false,
-      reason: "storage_full",
-    });
+    vi.mocked(storage.readRaw).mockReturnValueOnce([
+      {
+        id: workplaceId,
+        name: "Test",
+        hourlyWage: 10000,
+        isFiveOrMore: false,
+        payday: 25,
+        taxType: "none",
+        colorToken: "blue",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        updatedAt: "2026-03-01T10:00:00.000Z",
+      },
+    ] as any);
+    vi.mocked(storage.writeRaw).mockReturnValueOnce({ ok: false, reason: "quota" });
 
     const result = await updateWorkplace(workplaceId, { hourlyWage: 12000 });
 
     expect(result.ok).toBe(false);
-    expect(result.reason).toBe("storage_full");
+    if (result.ok) throw new Error("unreachable");
+    expect(result.reason).toBe("quota");
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -89,14 +111,9 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   // ─────────────────────────────────────────────────────────────
 
   it("AC-2[P0]: upsertPayCheck should create new paycheck with createdAt === updatedAt", async () => {
+    setupFakeStorage();
     const workplaceId = "wp-1";
     const yearMonth = "2026-03";
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: [],
-    });
-    vi.mocked(storage.writeRaw).mockResolvedValueOnce({ ok: true });
 
     const result = await upsertPayCheck(workplaceId, yearMonth, {
       actualPaidAmount: 5000000,
@@ -107,38 +124,29 @@ describe("Collection Repository · Validation · Schema Migration", () => {
     });
 
     expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
     expect(result.id).toBeDefined();
     expect(result.workplaceId).toBe(workplaceId);
     expect(result.yearMonth).toBe(yearMonth);
     expect(result.createdAt).toBe(result.updatedAt);
   });
 
-  it("AC-2b[P0]: upsertPayCheck should update existing by workplaceId+yearMonth, preserve id/createdAt", async () => {
+  it("AC-2b[P0]: upsertPayCheck should update existing by workplaceId+yearMonth, preserve id/createdAt, and keep a single row", async () => {
+    const store = setupFakeStorage();
     const workplaceId = "wp-1";
     const yearMonth = "2026-03";
-    const originalCreatedAt = 1000;
 
-    const existingPayCheck = {
-      id: "pc-1",
-      workplaceId,
-      yearMonth,
+    const first = await upsertPayCheck(workplaceId, yearMonth, {
       actualPaidAmount: 5000000,
       calculatedGross: 5200000,
       calculatedNet: 4420000,
       diff: -200000,
       suspects: [],
-      createdAt: originalCreatedAt,
-      updatedAt: originalCreatedAt,
-    };
-
-    // First call: read returns existing
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: [existingPayCheck],
     });
-    vi.mocked(storage.writeRaw).mockResolvedValueOnce({ ok: true });
+    expect(first.ok).toBe(true);
+    if (!first.ok) throw new Error("unreachable");
 
-    const result = await upsertPayCheck(workplaceId, yearMonth, {
+    const second = await upsertPayCheck(workplaceId, yearMonth, {
       actualPaidAmount: 5100000, // changed
       calculatedGross: 5300000,
       calculatedNet: 4505000,
@@ -146,11 +154,15 @@ describe("Collection Repository · Validation · Schema Migration", () => {
       suspects: [],
     });
 
-    expect(result.ok).toBe(true);
-    expect(result.id).toBe("pc-1"); // id unchanged
-    expect(result.createdAt).toBe(originalCreatedAt); // createdAt unchanged
-    expect(result.updatedAt).toBeGreaterThan(originalCreatedAt); // updatedAt updated
-    expect(result.actualPaidAmount).toBe(5100000); // new value
+    expect(second.ok).toBe(true);
+    if (!second.ok) throw new Error("unreachable");
+    expect(second.id).toBe(first.id); // id unchanged
+    expect(second.createdAt).toBe(first.createdAt); // createdAt unchanged
+    expect(new Date(second.updatedAt).getTime()).toBeGreaterThanOrEqual(new Date(first.updatedAt).getTime());
+    expect(second.actualPaidAmount).toBe(5100000); // new value
+
+    const stored = store["apg:paychecks:v1"] as unknown[];
+    expect(stored).toHaveLength(1);
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -158,22 +170,22 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   // ─────────────────────────────────────────────────────────────
 
   it("AC-3[P0]: isDuplicateRecord should return false when only self matches", async () => {
+    const store = setupFakeStorage();
     const recordId = "rec-1";
-    const self = {
-      id: recordId,
-      workplaceId: "wp-1",
-      date: "2026-03-02",
-      startTime: "18:00",
-      endTime: "22:00",
-      breakMinutes: 30,
-      createdAt: 1000,
-      updatedAt: 1000,
-    };
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: [self],
-    });
+    store["apg:records:v1"] = [
+      {
+        id: recordId,
+        workplaceId: "wp-1",
+        date: "2026-03-02",
+        startTime: "18:00",
+        endTime: "22:00",
+        breakMinutes: 30,
+        isHoliday: false,
+        memo: "",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        updatedAt: "2026-03-01T10:00:00.000Z",
+      },
+    ];
 
     const result = await isDuplicateRecord({
       id: recordId,
@@ -186,32 +198,34 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   });
 
   it("AC-3b[P0]: isDuplicateRecord should return true when other record matches", async () => {
+    const store = setupFakeStorage();
     const recordId = "rec-1";
-    const self = {
-      id: recordId,
-      workplaceId: "wp-1",
-      date: "2026-03-02",
-      startTime: "18:00",
-      endTime: "22:00",
-      breakMinutes: 30,
-      createdAt: 1000,
-      updatedAt: 1000,
-    };
-    const other = {
-      id: "rec-2",
-      workplaceId: "wp-1",
-      date: "2026-03-02",
-      startTime: "18:00",
-      endTime: "21:00",
-      breakMinutes: 15,
-      createdAt: 2000,
-      updatedAt: 2000,
-    };
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: [self, other],
-    });
+    store["apg:records:v1"] = [
+      {
+        id: recordId,
+        workplaceId: "wp-1",
+        date: "2026-03-02",
+        startTime: "18:00",
+        endTime: "22:00",
+        breakMinutes: 30,
+        isHoliday: false,
+        memo: "",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        updatedAt: "2026-03-01T10:00:00.000Z",
+      },
+      {
+        id: "rec-2",
+        workplaceId: "wp-1",
+        date: "2026-03-02",
+        startTime: "18:00",
+        endTime: "21:00",
+        breakMinutes: 15,
+        isHoliday: false,
+        memo: "",
+        createdAt: "2026-03-01T11:00:00.000Z",
+        updatedAt: "2026-03-01T11:00:00.000Z",
+      },
+    ];
 
     const result = await isDuplicateRecord({
       id: recordId,
@@ -224,21 +238,21 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   });
 
   it("AC-3c[P0]: isDuplicateRecord without id should find duplicates", async () => {
-    const record1 = {
-      id: "rec-1",
-      workplaceId: "wp-1",
-      date: "2026-03-02",
-      startTime: "18:00",
-      endTime: "22:00",
-      breakMinutes: 30,
-      createdAt: 1000,
-      updatedAt: 1000,
-    };
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: [record1],
-    });
+    const store = setupFakeStorage();
+    store["apg:records:v1"] = [
+      {
+        id: "rec-1",
+        workplaceId: "wp-1",
+        date: "2026-03-02",
+        startTime: "18:00",
+        endTime: "22:00",
+        breakMinutes: 30,
+        isHoliday: false,
+        memo: "",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        updatedAt: "2026-03-01T10:00:00.000Z",
+      },
+    ];
 
     const result = await isDuplicateRecord({
       workplaceId: "wp-1",
@@ -254,11 +268,12 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   // ─────────────────────────────────────────────────────────────
 
   it("AC-4[P0]: runMigration should backfill missing updatedAt from createdAt", async () => {
+    setupFakeStorage();
     const workplaceWithoutUpdatedAt = {
       id: "wp-1",
       name: "Test",
       hourlyWage: 10000,
-      createdAt: 1000,
+      createdAt: "2026-03-01T10:00:00.000Z",
       // updatedAt missing
     };
     const recordWithoutUpdatedAt = {
@@ -268,70 +283,68 @@ describe("Collection Repository · Validation · Schema Migration", () => {
       startTime: "18:00",
       endTime: "22:00",
       breakMinutes: 30,
-      createdAt: 2000,
+      createdAt: "2026-03-01T11:00:00.000Z",
       // updatedAt missing
     };
 
-    vi.mocked(storage.readRaw)
-      .mockResolvedValueOnce({ ok: true, data: [workplaceWithoutUpdatedAt] })
-      .mockResolvedValueOnce({ ok: true, data: [recordWithoutUpdatedAt] })
-      .mockResolvedValueOnce({ ok: true, data: [] })
-      .mockResolvedValueOnce({ ok: true, data: {} });
+    vi.mocked(storage.getItem).mockImplementation(((key: string) => {
+      if (key === "apg:workplaces:v1") return [workplaceWithoutUpdatedAt];
+      if (key === "apg:records:v1") return [recordWithoutUpdatedAt];
+      if (key === "apg:paychecks:v1") return [];
+      if (key === "apg:settings:v1") return {};
+      return null;
+    }) as typeof storage.getItem);
 
     const writeCalls: any[] = [];
-    vi.mocked(storage.writeRaw).mockImplementation((key, data) => {
+    vi.mocked(storage.writeRaw).mockImplementation(((key: string, data: unknown) => {
       writeCalls.push([key, data]);
-      return Promise.resolve({ ok: true });
-    });
+      return { ok: true };
+    }) as typeof storage.writeRaw);
 
     await runMigration();
 
-    // Verify workplaces were migrated with updatedAt filled
     const workplaceCall = writeCalls.find((call) => call[0] === "apg:workplaces:v1");
     expect(workplaceCall).toBeDefined();
-    const migratedWorkplace = workplaceCall[1][0];
-    expect(migratedWorkplace.updatedAt).toBe(1000); // backfilled from createdAt
+    expect(workplaceCall[1][0].updatedAt).toBe("2026-03-01T10:00:00.000Z"); // backfilled from createdAt
 
-    // Verify records were migrated with updatedAt filled
     const recordCall = writeCalls.find((call) => call[0] === "apg:records:v1");
     expect(recordCall).toBeDefined();
-    const migratedRecord = recordCall[1][0];
-    expect(migratedRecord.updatedAt).toBe(2000); // backfilled from createdAt
+    expect(recordCall[1][0].updatedAt).toBe("2026-03-01T11:00:00.000Z"); // backfilled from createdAt
   });
 
   it("AC-4b[P0]: runMigration should remove id/createdAt/updatedAt from settings", async () => {
+    setupFakeStorage();
     const settingsWithMetadata = {
       id: "settings-1",
-      createdAt: 1000,
-      updatedAt: 2000,
-      hourlyWage: 10000,
-      weeklyHours: 40,
-      currency: "KRW",
+      createdAt: "2026-03-01T10:00:00.000Z",
+      updatedAt: "2026-03-01T11:00:00.000Z",
+      onboardingSeenAt: null,
+      disclaimerAckAt: null,
+      activeWorkplaceId: null,
+      rewardUnlocks: {},
+      schemaVersion: 1,
     };
 
-    vi.mocked(storage.readRaw)
-      .mockResolvedValueOnce({ ok: true, data: [] })
-      .mockResolvedValueOnce({ ok: true, data: [] })
-      .mockResolvedValueOnce({ ok: true, data: [] })
-      .mockResolvedValueOnce({ ok: true, data: settingsWithMetadata });
+    vi.mocked(storage.getItem).mockImplementation(((key: string) => {
+      if (key === "apg:settings:v1") return settingsWithMetadata;
+      return [];
+    }) as typeof storage.getItem);
 
     const writeCalls: any[] = [];
-    vi.mocked(storage.writeRaw).mockImplementation((key, data) => {
+    vi.mocked(storage.writeRaw).mockImplementation(((key: string, data: unknown) => {
       writeCalls.push([key, data]);
-      return Promise.resolve({ ok: true });
-    });
+      return { ok: true };
+    }) as typeof storage.writeRaw);
 
     await runMigration();
 
-    // Verify settings metadata was removed
     const settingsCall = writeCalls.find((call) => call[0] === "apg:settings:v1");
     expect(settingsCall).toBeDefined();
     const migratedSettings = settingsCall[1];
     expect(migratedSettings).not.toHaveProperty("id");
     expect(migratedSettings).not.toHaveProperty("createdAt");
     expect(migratedSettings).not.toHaveProperty("updatedAt");
-    expect(migratedSettings.hourlyWage).toBe(10000); // other fields preserved
-    expect(migratedSettings.weeklyHours).toBe(40);
+    expect(migratedSettings.schemaVersion).toBe(1); // other fields preserved
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -388,16 +401,15 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   // ─────────────────────────────────────────────────────────────
 
   it("AC-6[P0]: saveWorkplace should return writeRaw error result without throwing", async () => {
-    vi.mocked(storage.writeRaw).mockResolvedValueOnce({
-      ok: false,
-      reason: "quota_exceeded",
-    });
+    setupFakeStorage();
+    vi.mocked(storage.writeRaw).mockReturnValueOnce({ ok: false, reason: "quota" });
 
     const consoleSpy = vi.spyOn(console, "error");
 
     let threw = false;
+    let result: Awaited<ReturnType<typeof saveWorkplace>> | undefined;
     try {
-      await saveWorkplace({
+      result = await saveWorkplace({
         name: "Test Workplace",
         hourlyWage: 10000,
       });
@@ -406,22 +418,22 @@ describe("Collection Repository · Validation · Schema Migration", () => {
     }
 
     expect(threw).toBe(false);
+    expect(result?.ok).toBe(false);
     expect(consoleSpy).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
   });
 
   it("AC-6b[P0]: saveRecord should return writeRaw error result without throwing", async () => {
-    vi.mocked(storage.writeRaw).mockResolvedValueOnce({
-      ok: false,
-      reason: "write_failed",
-    });
+    setupFakeStorage();
+    vi.mocked(storage.writeRaw).mockReturnValueOnce({ ok: false, reason: "size" });
 
     const consoleSpy = vi.spyOn(console, "error");
 
     let threw = false;
+    let result: Awaited<ReturnType<typeof saveRecord>> | undefined;
     try {
-      await saveRecord({
+      result = await saveRecord({
         workplaceId: "wp-1",
         date: "2026-03-02",
         startTime: "18:00",
@@ -433,6 +445,7 @@ describe("Collection Repository · Validation · Schema Migration", () => {
     }
 
     expect(threw).toBe(false);
+    expect(result?.ok).toBe(false);
     expect(consoleSpy).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
@@ -443,6 +456,7 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   // ─────────────────────────────────────────────────────────────
 
   it("getRecordById should return record by id", async () => {
+    const store = setupFakeStorage();
     const recordId = "rec-1";
     const record = {
       id: recordId,
@@ -451,14 +465,12 @@ describe("Collection Repository · Validation · Schema Migration", () => {
       startTime: "18:00",
       endTime: "22:00",
       breakMinutes: 30,
-      createdAt: 1000,
-      updatedAt: 1000,
+      isHoliday: false,
+      memo: "",
+      createdAt: "2026-03-01T10:00:00.000Z",
+      updatedAt: "2026-03-01T10:00:00.000Z",
     };
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: [record],
-    });
+    store["apg:records:v1"] = [record];
 
     const result = await getRecordById(recordId);
 
@@ -466,10 +478,7 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   });
 
   it("getRecordById should return undefined when not found", async () => {
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: [],
-    });
+    setupFakeStorage();
 
     const result = await getRecordById("nonexistent");
 
@@ -477,102 +486,94 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   });
 
   it("updateRecord should preserve createdAt and update updatedAt", async () => {
+    const store = setupFakeStorage();
     const recordId = "rec-1";
-    const originalCreatedAt = 1000;
-    const original = {
-      id: recordId,
-      workplaceId: "wp-1",
-      date: "2026-03-02",
-      startTime: "18:00",
-      endTime: "22:00",
-      breakMinutes: 30,
-      createdAt: originalCreatedAt,
-      updatedAt: originalCreatedAt,
-    };
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: [original],
-    });
-    vi.mocked(storage.writeRaw).mockResolvedValueOnce({ ok: true });
+    const originalCreatedAt = "2026-03-01T10:00:00.000Z";
+    store["apg:records:v1"] = [
+      {
+        id: recordId,
+        workplaceId: "wp-1",
+        date: "2026-03-02",
+        startTime: "18:00",
+        endTime: "22:00",
+        breakMinutes: 30,
+        isHoliday: false,
+        memo: "",
+        createdAt: originalCreatedAt,
+        updatedAt: originalCreatedAt,
+      },
+    ];
 
     const result = await updateRecord(recordId, { breakMinutes: 60 });
 
     expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
     expect(result.createdAt).toBe(originalCreatedAt);
-    expect(result.updatedAt).toBeGreaterThan(originalCreatedAt);
+    expect(new Date(result.updatedAt).getTime()).toBeGreaterThan(new Date(originalCreatedAt).getTime());
     expect(result.breakMinutes).toBe(60);
   });
 
   it("deleteRecord should remove record and return success", async () => {
+    const store = setupFakeStorage();
     const recordId = "rec-1";
-    const record = {
-      id: recordId,
-      workplaceId: "wp-1",
-      date: "2026-03-02",
-      startTime: "18:00",
-      endTime: "22:00",
-      breakMinutes: 30,
-      createdAt: 1000,
-      updatedAt: 1000,
-    };
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: [record],
-    });
-    vi.mocked(storage.writeRaw).mockResolvedValueOnce({ ok: true });
+    store["apg:records:v1"] = [
+      {
+        id: recordId,
+        workplaceId: "wp-1",
+        date: "2026-03-02",
+        startTime: "18:00",
+        endTime: "22:00",
+        breakMinutes: 30,
+        isHoliday: false,
+        memo: "",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        updatedAt: "2026-03-01T10:00:00.000Z",
+      },
+    ];
 
     const result = await deleteRecord(recordId);
 
     expect(result.ok).toBe(true);
+    expect(store["apg:records:v1"]).toEqual([]);
   });
 
   it("getSettings should exclude id/createdAt/updatedAt metadata", async () => {
-    const settingsWithMetadata = {
+    const store = setupFakeStorage();
+    store["apg:settings:v1"] = {
       id: "settings-1",
-      createdAt: 1000,
-      updatedAt: 2000,
-      hourlyWage: 10000,
-      weeklyHours: 40,
+      createdAt: "2026-03-01T10:00:00.000Z",
+      updatedAt: "2026-03-01T11:00:00.000Z",
+      onboardingSeenAt: null,
+      disclaimerAckAt: null,
+      activeWorkplaceId: null,
+      rewardUnlocks: {},
+      schemaVersion: 1,
     };
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: settingsWithMetadata,
-    });
 
     const result = await getSettings();
 
     expect(result).not.toHaveProperty("id");
     expect(result).not.toHaveProperty("createdAt");
     expect(result).not.toHaveProperty("updatedAt");
-    expect(result.hourlyWage).toBe(10000);
-    expect(result.weeklyHours).toBe(40);
+    expect(result.schemaVersion).toBe(1);
   });
 
-  it("patchSettings should merge partial updates with createdAt/updatedAt handling", async () => {
-    const currentSettings = {
-      id: "settings-1",
-      createdAt: 1000,
-      updatedAt: 1000,
-      hourlyWage: 10000,
-      weeklyHours: 40,
+  it("patchSettings should merge partial updates", async () => {
+    const store = setupFakeStorage();
+    store["apg:settings:v1"] = {
+      onboardingSeenAt: null,
+      disclaimerAckAt: null,
+      activeWorkplaceId: null,
+      rewardUnlocks: {},
+      schemaVersion: 1,
     };
 
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: currentSettings,
-    });
-    vi.mocked(storage.writeRaw).mockResolvedValueOnce({ ok: true });
-
-    const result = await patchSettings({ hourlyWage: 12000 });
+    const result = await patchSettings({ activeWorkplaceId: "wp-1" });
 
     expect(result.ok).toBe(true);
-    expect(result.hourlyWage).toBe(12000);
-    expect(result.weeklyHours).toBe(40); // unchanged field preserved
-    expect(result.createdAt).toBe(1000); // createdAt unchanged
-    expect(result.updatedAt).toBeGreaterThan(1000); // updatedAt updated
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.activeWorkplaceId).toBe("wp-1");
+    expect(result.schemaVersion).toBe(1); // unchanged field preserved
   });
 
   it("validateWorkplace should validate required fields and values", () => {
@@ -591,27 +592,31 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   });
 
   it("getWorkplaces should return all workplaces from storage", async () => {
-    const workplaces = [
+    const store = setupFakeStorage();
+    store["apg:workplaces:v1"] = [
       {
         id: "wp-1",
         name: "Workplace 1",
         hourlyWage: 10000,
-        createdAt: 1000,
-        updatedAt: 1000,
+        isFiveOrMore: false,
+        payday: 25,
+        taxType: "none",
+        colorToken: "blue",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        updatedAt: "2026-03-01T10:00:00.000Z",
       },
       {
         id: "wp-2",
         name: "Workplace 2",
         hourlyWage: 12000,
-        createdAt: 2000,
-        updatedAt: 2000,
+        isFiveOrMore: false,
+        payday: 25,
+        taxType: "none",
+        colorToken: "green",
+        createdAt: "2026-03-01T11:00:00.000Z",
+        updatedAt: "2026-03-01T11:00:00.000Z",
       },
     ];
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: workplaces,
-    });
 
     const result = await getWorkplaces();
 
@@ -621,7 +626,8 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   });
 
   it("getRecords should return all records from storage", async () => {
-    const records = [
+    const store = setupFakeStorage();
+    store["apg:records:v1"] = [
       {
         id: "rec-1",
         workplaceId: "wp-1",
@@ -629,15 +635,12 @@ describe("Collection Repository · Validation · Schema Migration", () => {
         startTime: "18:00",
         endTime: "22:00",
         breakMinutes: 30,
-        createdAt: 1000,
-        updatedAt: 1000,
+        isHoliday: false,
+        memo: "",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        updatedAt: "2026-03-01T10:00:00.000Z",
       },
     ];
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: records,
-    });
 
     const result = await getRecords();
 
@@ -646,7 +649,8 @@ describe("Collection Repository · Validation · Schema Migration", () => {
   });
 
   it("getPayChecks should return all paychecks from storage", async () => {
-    const payChecks = [
+    const store = setupFakeStorage();
+    store["apg:paychecks:v1"] = [
       {
         id: "pc-1",
         workplaceId: "wp-1",
@@ -656,15 +660,10 @@ describe("Collection Repository · Validation · Schema Migration", () => {
         calculatedNet: 4420000,
         diff: -200000,
         suspects: [],
-        createdAt: 1000,
-        updatedAt: 1000,
+        createdAt: "2026-03-01T10:00:00.000Z",
+        updatedAt: "2026-03-01T10:00:00.000Z",
       },
     ];
-
-    vi.mocked(storage.readRaw).mockResolvedValueOnce({
-      ok: true,
-      data: payChecks,
-    });
 
     const result = await getPayChecks();
 
