@@ -1,0 +1,11 @@
+// @ai-factory:placeholder
+// 배선 선행(wiring-first)이 깐 자리 페이지다 — App.tsx에 `/check/result`로 이미 연결돼 있다.
+// 이 화면을 담당하는 패킷은 이 파일을 **통째로 교체**하라(위 마커 주석 포함 — 마커가 남으면 산출물로 인정되지 않는다).
+export default function CheckResult() {
+  return (
+    <main data-testid="placeholder-check-result">
+      <h1>미지급 분석 결과</h1>
+      <p>이 화면은 준비 중이에요.</p>
+    </main>
+  );
+}
