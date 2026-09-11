@@ -212,7 +212,7 @@ export interface MonthlyPayroll {
 
 ### Exports (src/lib/)
 - contract.ts: export type RouteState =; export type Record =; export type Workplace =; export type PayrollEntry =; export type useAppDataFn = () =>; export type calculateDailyPayrollFn = (record: Record, opts?:; export type calculateMonthlyPayrollFn = (entries: PayrollEntry[]) =>; export type analyzeUnpaidFn = (records: Record[], targetAmount: number) =>
-- storage.ts: export function getItem<T>(key: string): T | null; export function setItem<T>(key: string, value: T): void; export function removeItem(key: string): void
+- storage.ts: export function getItem<T>(key: string): T | null; export function setItem<T>(key: string, value: T): void; export function removeItem(key: string): void; export interface WriteRawResult; export function consumeCorruptionFlag(): boolean; export function writeRaw(key: string, value: unknown): WriteRawResult; export function readRaw<T>( key: string, fallback: T, isValid: (data: unknown) => data is T ): T; export function isWorkplaceArray(data: unknown): data is Workplace[]
 - types.ts: export type TaxType = 'none' | 'freelance3_3'; export interface Workplace; export interface WorkRecord; export type SuspectKind = 'weeklyHoliday' | 'night' | 'overtime' | 'holiday' | 'minimumWage'; export interface PaySuspect; export interface PayCheck; export interface PayAnalysis; export interface AppSettings
 - utils.ts: export function cn(...classes: (string | boolean | undefined | null)[]): string; export function formatNumber(n: number): string; export function formatCurrency(n: number, currency = 'KRW'): string
 
@@ -231,75 +231,11 @@ export interface MonthlyPayroll {
 - SummaryHero.tsx: SummaryHero
 - TossPurchase.tsx: TossPurchase
 - TossRewardAd.tsx: TossRewardAd
+
+### Module Dependencies (import graph)
+  lib/storage.ts → imports: lib/types, lib/types
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
 - 0001: 엔티티 타입·상수·RouteState 정의 (files: src/lib/types.ts)
-
-## Available exports from existing files
-// src/App.tsx
-export default function App() {
-
-// src/components/AdSlot.tsx
-export function AdSlot({ adGroupId, className, variant, theme }: AdSlotProps) {
-
-// src/components/Amount.tsx
-export function Amount({
-
-// src/components/BottomCTA.tsx
-export function SubmitFooter({
-export function ButtonStack({
-
-// src/components/Card.tsx
-export function Card({
-
-// src/components/CountUp.tsx
-export function CountUp({
-
-// src/components/FloatingTabBar.tsx
-export type TabItem = {
-export function FloatingTabBar({ items }: { items: TabItem[] }) {
-
-// src/components/MiniBar.tsx
-export function MiniBar({
-
-// src/components/PageShell.tsx
-export function PageShell({ children, style }: { children: ReactNode; style?: CSSProperties }) {
-
-// src/components/ScreenScaffold.tsx
-export function ScreenScaffold({
-
-// src/components/Sparkline.tsx
-export function Sparkline({
-
-// src/components/StateView.tsx
-export function EmptyState({
-export function LoadingState({
-
-// src/components/SummaryHero.tsx
-export function SummaryHero({
-
-// src/components/TossPurchase.tsx
-export interface TossPurchaseResult {
-export function TossPurchase({
-
-// src/components/TossRewardAd.tsx
-export function TossRewardAd({
-
-// src/lib/contract.ts
-export type RouteState = { section: 'home' | 'record' | 'breakdown' | 'check' | 'checkResult' | 'records' | 'workplace'; recordId?: string; month?: string };
-export type Record = { id: string; workplaceId: string; date: string; hoursWorked: number; hourlyRate: number; memo?: string };
-export type Workplace = { id: string; name: string; baseHourlyRate: number; isActive: boolean; createdAt: string };
-export type PayrollEntry = { date: string; hoursWorked: number; rate: number; dailyWages: number; adjustments?: { sundayPay?: number; weeklyRest?: number; minWageGap?: number } };
-export type useAppDataFn = () => { records: Record[]; workplaces: Workplace[]; addRecord: (r: Record) => Promise<void>; updateRecord: (id: string, r: Partial<Record>) => Promise<void>; deleteRecord: (id:
-
-## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
-
-Available topics: deploy(4), general(12), testing(1), ui(1)
-
-Key lessons (verify against actual code before applying):
-- [deploy] 매 에이전트 실행마다 재생성되는 도구용 파일은 반드시 .gitignore에 넣고, 진입점(라우터·앱 셸) 배선 패킷을 가장 먼저 병합한 뒤 미구현 화면은 플레이스홀더 모듈로 import를 성립시켜 각 패킷이 단독으로 타입체크·빌드를 통과하게 하라. (60% · 타 앱 1회 — 맹신 금지)
-- [general] 화면·라우팅 등 소비자 모듈은 그것이 import하는 생산자 모듈이 병합된 뒤에만 병합하고, 순서를 지킬 수 없으면 소비자 병합과 동시에 최소 플레이스홀더를 만들어 매 병합 직후 타입체크와 빌드가 항상 통과하도록 유지하라. (60% · 타 앱 1회 — 맹신 금지)
-- [general] 전역 라우팅·탭바·Provider 배선은 개별 화면보다 먼저(초반 20% 안에) 완료하고 미구현 화면은 스텁 라우트로 연결해, 시간 예산이 소진돼도 앱이 항상 실행 가능한 상태를 유지하라. (60% · 타 앱 1회 — 맹신 금지)
-- [general] 저장·데이터 접근 등 기반 계층 패킷은 이를 import 하는 화면 패킷보다 반드시 먼저 완료·병합하고, 미완료면 상위 화면 패킷 병합을 차단하라 — 빈 기반 모듈 하나가 전 라우트 스모크를 무너뜨린다. (60% · 타 앱 1회 — 맹신 금지)
-- [general] 외부에서 들어온 모든 값(라우터 state, 로컬 저장소, 부분 입력 폼)은 사용 직전에 배열·객체 기본값으로 정규화하고, 테이블/맵 조회 결과는 존재 확인 후에만 하위 속성이나 length에 접근하라. (60% · 타 앱 1회 — 맹신 금지)
+- 0002: 저장소 원시 I/O — 키별 손상 복구 & 쓰기 가드 (files: src/lib/storage.ts)
