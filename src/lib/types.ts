@@ -133,7 +133,7 @@ export interface RouteState {
   '/onboarding': undefined;
   '/record/new': { workplaceId: string; date: string } | undefined;
   '/record/edit': { recordId: string } | undefined;
-  '/records': { workplaceId: string; yearMonth?: string } | undefined;
+  '/records': { workplaceId?: string; yearMonth?: string; toast?: string } | undefined;
   '/breakdown': { workplaceId: string; yearMonth?: string } | undefined;
   '/check': { workplaceId: string; yearMonth?: string } | undefined;
   '/check/result': { workplaceId: string; yearMonth: string; actualPaidAmount: number } | undefined;

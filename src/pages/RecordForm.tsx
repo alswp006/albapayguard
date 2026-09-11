@@ -69,6 +69,7 @@ export default function RecordForm() {
 
   const [error, setError] = useState<string | null>(null);
   const [duplicateToastOpen, setDuplicateToastOpen] = useState(false);
+  const [quotaToastOpen, setQuotaToastOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const startRef = useRef<HTMLInputElement>(null);
@@ -159,12 +160,22 @@ export default function RecordForm() {
       return;
     }
 
-    if (isEdit && id) {
-      await editRecord(id, input);
-    } else {
-      await addRecord(input);
+    try {
+      const result = isEdit && id ? await editRecord(id, input) : await addRecord(input);
+      if (!result.ok) {
+        setQuotaToastOpen(true);
+        return;
+      }
+    } catch {
+      setQuotaToastOpen(true);
+      return;
     }
-    navigate(-1);
+
+    if (isEdit) {
+      navigate(-1);
+    } else {
+      navigate('/records', { state: { toast: '저장했어요' } satisfies RouteState['/records'] });
+    }
   }
 
   function handleToggleHoliday() {
@@ -310,6 +321,14 @@ export default function RecordForm() {
         text="같은 시간에 저장된 기록이 있어요"
         duration={3000}
         onClose={() => setDuplicateToastOpen(false)}
+      />
+
+      <Toast
+        open={quotaToastOpen}
+        position="bottom"
+        text="저장 공간이 부족합니다. 오래된 기록을 삭제해주세요"
+        duration={3000}
+        onClose={() => setQuotaToastOpen(false)}
       />
     </ScreenScaffold>
   );

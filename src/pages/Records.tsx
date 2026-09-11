@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Top, ListRow, Badge, Paragraph, Spacing, Button, AlertDialog, Asset } from '@toss/tds-mobile';
+import { Top, ListRow, Badge, Paragraph, Spacing, Button, AlertDialog, Toast, Asset } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { Card } from '@/components/Card';
 import { Amount } from '@/components/Amount';
@@ -90,10 +90,16 @@ export default function Records() {
 
   const { loading, workplaces, records, settings, removeRecord } = useAppData();
 
+  const incomingToast = state?.toast;
+  const [savedToastOpen, setSavedToastOpen] = useState(Boolean(incomingToast));
   const [workplaceOverride, setWorkplaceOverride] = useState<string | null>(null);
   const [monthOverride, setMonthOverride] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (incomingToast) setSavedToastOpen(true);
+  }, [incomingToast]);
 
   const fallbackWorkplaceId =
     workplaces.find((w) => w.id === settings.activeWorkplaceId)?.id ?? workplaces[0]?.id ?? null;
@@ -307,6 +313,14 @@ export default function Records() {
         description="삭제하면 되돌릴 수 없어요"
         alertButton={<AlertDialog.AlertButton onClick={handleConfirmDelete}>삭제하기</AlertDialog.AlertButton>}
         onClose={() => setDeleteTargetId(null)}
+      />
+
+      <Toast
+        open={savedToastOpen}
+        position="bottom"
+        text={incomingToast ?? ''}
+        duration={3000}
+        onClose={() => setSavedToastOpen(false)}
       />
     </ScreenScaffold>
   );
