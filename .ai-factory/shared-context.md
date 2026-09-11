@@ -194,6 +194,7 @@ export interface MonthlyPayroll {
     storage.ts
     types.ts
     utils.ts
+    workplaceIntegrity.ts
   main.tsx
   pages/
     Breakdown.tsx
@@ -217,6 +218,7 @@ export interface MonthlyPayroll {
 - storage.ts: export function getItem<T>(key: string): T | null; export function setItem<T>(key: string, value: T): void; export function removeItem(key: string): void; export interface WriteRawResult; export function consumeCorruptionFlag(): boolean; export function writeRaw(key: string, value: unknown): WriteRawResult; export function readRaw<T>( key: string, fallback: T, isValid: (data: unknown) => data is T ): T; export function isWorkplaceArray(data: unknown): data is Workplace[]
 - types.ts: export type TaxType = 'none' | 'freelance3_3'; export interface Workplace; export interface WorkRecord; export type SuspectKind = 'weeklyHoliday' | 'night' | 'overtime' | 'holiday' | 'minimumWage'; export interface PaySuspect; export interface PayCheck; export interface PayAnalysis; export interface AppSettings
 - utils.ts: export function cn(...classes: (string | boolean | undefined | null)[]): string; export function formatNumber(n: number): string; export function formatCurrency(n: number, currency = 'KRW'): string
+- workplaceIntegrity.ts: export type DeleteWorkplaceCascadeResult = |; export async function resolveActiveWorkplaceId(): Promise<string | null>; export async function countLinked(workplaceId: string): Promise<number>; export async function canAddWorkplace(): Promise<boolean>; export async function deleteWorkplaceCascade(workplaceId: string): Promise<DeleteWorkplaceCascadeResult>
 
 ### Components (src/components/)
 - AdSlot.tsx: AdSlot
@@ -237,12 +239,14 @@ export interface MonthlyPayroll {
 ### Module Dependencies (import graph)
   lib/repository.ts → imports: lib/types, lib/types, lib/storage
   lib/storage.ts → imports: lib/types, lib/types
+  lib/workplaceIntegrity.ts → imports: lib/types, lib/repository, lib/storage
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
 - 0001: 엔티티 타입·상수·RouteState 정의 (files: src/lib/types.ts)
 - 0002: 저장소 원시 I/O — 키별 손상 복구 & 쓰기 가드 (files: src/lib/storage.ts)
 - 0003: 컬렉션 리포지토리 · 검증 · 스키마 마이그레이션 (files: src/lib/repository.ts)
+- 0004: 연쇄 삭제 트랜잭션 & 활성 근무지 포인터 정합성 (files: src/lib/workplaceIntegrity.ts)
 
 ## Available exports from existing files
 // src/App.tsx
