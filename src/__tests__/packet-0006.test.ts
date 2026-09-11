@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { WorkRecord, Workplace, MonthlyPayroll } from "@/lib/types";
+import { calcMonthly } from "@/lib/payrollMonthly";
 
 /**
  * 급여 계산 엔진 ② 주휴수당·최저임금·월 집계 — TDD 빨간색 단계
@@ -17,18 +18,12 @@ import type { WorkRecord, Workplace, MonthlyPayroll } from "@/lib/types";
  * - AC-6: 비정상 레코드 처리 → 제외하고 계산, throw/console.error 0건
  */
 
-// Helper to safely import calcMonthly
+// Helper to safely reference calcMonthly (kept for call-site consistency across the file)
 function getCalcMonthly(): ((records: WorkRecord[], workplace: Workplace, yearMonth: string) => MonthlyPayroll) {
-  try {
-    // eslint-disable-next-line global-require
-    const mod = require("@/lib/payrollMonthly");
-    if (!mod.calcMonthly) {
-      throw new Error("calcMonthly not exported from payrollMonthly.ts");
-    }
-    return mod.calcMonthly;
-  } catch (e) {
-    throw new Error(`Cannot load calcMonthly: ${e instanceof Error ? e.message : String(e)}`);
+  if (!calcMonthly) {
+    throw new Error("calcMonthly not exported from payrollMonthly.ts");
   }
+  return calcMonthly;
 }
 
 describe("급여 계산 엔진 ② 주휴수당·최저임금·월 집계", () => {
@@ -230,10 +225,11 @@ describe("급여 계산 엔진 ② 주휴수당·최저임금·월 집계", () =
   });
 
   describe("AC-5: 세금 계산 (taxType='freelance3_3')", () => {
-    it("AC-5: gross=252840 + taxType='freelance3_3' should net=floor(gross*0.967)=244496", () => {
-      // To get gross=252840:
-      // Need sufficient working hours. 252840 / 10320 ≈ 24.5 hours
-      // Create ~25 hours of work
+    it("AC-5: gross=359136 + taxType='freelance3_3' should net=floor(gross*0.967)=347284", () => {
+      // 2026-03-02(Mon)~03-08(Sun)는 ISO 주 하나(월요일 시작) — 29시간 근무.
+      // basePay: 6일×4h(41280) + 1일×5h(51600) = 299280
+      // weeklyHolidayPay: 주 실근로 1740분(≥900) → floor(min(1740,2400)/5/60×10320) = 59856
+      // gross = 299280 + 59856 = 359136
       const records: WorkRecord[] = [
         createRecord({ date: "2026-03-02", startTime: "09:00", endTime: "13:00" }), // 4h
         createRecord({ date: "2026-03-03", startTime: "09:00", endTime: "13:00" }), // 4h
@@ -252,10 +248,10 @@ describe("급여 계산 엔진 ② 주휴수당·최저임금·월 집계", () =
       const result = calcMonthlyFn(records, workplace, "2026-03");
 
       // Verify net calculation
-      expect(result.gross).toBe(252840); // 29 hours × 10320 / 60 ≈ 252840
+      expect(result.gross).toBe(359136);
       const expectedNet = Math.floor(result.gross * 0.967);
       expect(result.net).toBe(expectedNet);
-      expect(result.net).toBe(244496); // floor(252840 * 0.967)
+      expect(result.net).toBe(347284); // floor(359136 * 0.967)
     });
 
     it("AC-5: taxType='none' should have net=gross (no tax deduction)", () => {

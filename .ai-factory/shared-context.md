@@ -190,6 +190,7 @@ export interface MonthlyPayroll {
   hooks/
   lib/
     contract.ts
+    payrollDaily.ts
     repository.ts
     storage.ts
     types.ts
@@ -214,6 +215,7 @@ export interface MonthlyPayroll {
 
 ### Exports (src/lib/)
 - contract.ts: export type RouteState =; export type Record =; export type Workplace =; export type PayrollEntry =; export type useAppDataFn = () =>; export type calculateDailyPayrollFn = (record: Record, opts?:; export type calculateMonthlyPayrollFn = (entries: PayrollEntry[]) =>; export type analyzeUnpaidFn = (records: Record[], targetAmount: number) =>
+- payrollDaily.ts: export interface TimeComponents; export interface DailyPay; export interface WorkRecord; export interface Workplace; export function parseHHmm(s: string): TimeComponents | null; export function calcWorkedMinutes( start: TimeComponents, end: TimeComponents, breakMinutes: number ): number; export function calcNightMinutes( start: TimeComponents, end: TimeComponents ): number; export function calcDaily( record: WorkRecord, workplace: Workplace ): DailyPay | null
 - repository.ts: export type WriteOutcome<T> = (; export type NewWorkplaceInput = Partial<Omit<Workplace, 'id' | 'createdAt' | 'updatedAt'>> & Pick<Workplace, 'name' | 'h; export async function getWorkplaces(): Promise<Workplace[]>; export async function saveWorkplace(input: NewWorkplaceInput): Promise<WriteOutcome<Workplace>>; export async function updateWorkplace( id: string, patch: Partial<Omit<Workplace, 'id' | 'createdAt' | 'updatedAt'>> ): ; export async function deleteWorkplace(id: string): Promise<; export type NewRecordInput = Partial<Omit<WorkRecord, 'id' | 'createdAt' | 'updatedAt'>> & Pick<WorkRecord, 'workplaceId; export async function getRecords(): Promise<WorkRecord[]>
 - storage.ts: export function getItem<T>(key: string): T | null; export function setItem<T>(key: string, value: T): void; export function removeItem(key: string): void; export interface WriteRawResult; export function consumeCorruptionFlag(): boolean; export function writeRaw(key: string, value: unknown): WriteRawResult; export function readRaw<T>( key: string, fallback: T, isValid: (data: unknown) => data is T ): T; export function isWorkplaceArray(data: unknown): data is Workplace[]
 - types.ts: export type TaxType = 'none' | 'freelance3_3'; export interface Workplace; export interface WorkRecord; export type SuspectKind = 'weeklyHoliday' | 'night' | 'overtime' | 'holiday' | 'minimumWage'; export interface PaySuspect; export interface PayCheck; export interface PayAnalysis; export interface AppSettings
@@ -237,6 +239,7 @@ export interface MonthlyPayroll {
 - TossRewardAd.tsx: TossRewardAd
 
 ### Module Dependencies (import graph)
+  lib/payrollDaily.ts → imports: lib/contract
   lib/repository.ts → imports: lib/types, lib/types, lib/storage
   lib/storage.ts → imports: lib/types, lib/types
   lib/workplaceIntegrity.ts → imports: lib/types, lib/repository, lib/storage
@@ -247,6 +250,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0002: 저장소 원시 I/O — 키별 손상 복구 & 쓰기 가드 (files: src/lib/storage.ts)
 - 0003: 컬렉션 리포지토리 · 검증 · 스키마 마이그레이션 (files: src/lib/repository.ts)
 - 0004: 연쇄 삭제 트랜잭션 & 활성 근무지 포인터 정합성 (files: src/lib/workplaceIntegrity.ts)
+- 0005: 급여 계산 엔진 ① 일별 계산 (순수 함수) (files: src/lib/payrollDaily.ts)
 
 ## Available exports from existing files
 // src/App.tsx
@@ -310,8 +314,8 @@ export type useAppDataFn = () => { records: Record[]; workplaces: Workplace[]; a
 Available topics: deploy(4), general(12), testing(1), ui(1)
 
 Key lessons (verify against actual code before applying):
-- [deploy] 매 에이전트 실행마다 재생성되는 도구용 파일은 반드시 .gitignore에 넣고, 진입점(라우터·앱 셸) 배선 패킷을 가장 먼저 병합한 뒤 미구현 화면은 플레이스홀더 모듈로 import를 성립시켜 각 패킷이 단독으로 타입체크·빌드를 통과하게 하라. (60% · 타 앱 1회 — 맹신 금지)
 - [general] 화면·라우팅 등 소비자 모듈은 그것이 import하는 생산자 모듈이 병합된 뒤에만 병합하고, 순서를 지킬 수 없으면 소비자 병합과 동시에 최소 플레이스홀더를 만들어 매 병합 직후 타입체크와 빌드가 항상 통과하도록 유지하라. (60% · 타 앱 1회 — 맹신 금지)
 - [general] 전역 라우팅·탭바·Provider 배선은 개별 화면보다 먼저(초반 20% 안에) 완료하고 미구현 화면은 스텁 라우트로 연결해, 시간 예산이 소진돼도 앱이 항상 실행 가능한 상태를 유지하라. (60% · 타 앱 1회 — 맹신 금지)
 - [general] 저장·데이터 접근 등 기반 계층 패킷은 이를 import 하는 화면 패킷보다 반드시 먼저 완료·병합하고, 미완료면 상위 화면 패킷 병합을 차단하라 — 빈 기반 모듈 하나가 전 라우트 스모크를 무너뜨린다. (60% · 타 앱 1회 — 맹신 금지)
 - [general] 외부에서 들어온 모든 값(라우터 state, 로컬 저장소, 부분 입력 폼)은 사용 직전에 배열·객체 기본값으로 정규화하고, 테이블/맵 조회 결과는 존재 확인 후에만 하위 속성이나 length에 접근하라. (60% · 타 앱 1회 — 맹신 금지)
+- [general] 의존 그래프 최하층의 타입·계약 파일은 런타임 코드 0줄의 순수 선언으로 가장 먼저 단독 타입체크를 통과시키고, 파일 생성은 셸 명령이 아닌 허용된 편집 도구로만 하게 강제하라. (60% · 타 앱 1회 — 맹신 금지)
