@@ -48,7 +48,7 @@ setTimeout(() => {
  * WebView 밖(로컬 브라우저·검수자 PC·jsdom)에는 네이티브 브릿지가 없어 SDK 호출이
  * false를 반환하는 게 아니라 **throw**한다. 그 예외가 이벤트 핸들러를 빠져나가면
  * React 트리가 통째로 언마운트돼 흰 화면이 된다 — 동기 throw와 거부된 Promise를
- * 모두 삼켜서 햅틱 실패가 화면에 영향을 주지 않게 한다. console.error도 남기지 않는다
+ * 모두 삼켜서 햅틱 실패가 화면에 영향을 주지 않게 한다. 에러 로깅도 남기지 않는다
  * (검수 기준: 콘솔 에러 0건).
  */
 export function useHaptic() {
