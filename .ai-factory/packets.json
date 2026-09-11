@@ -1,0 +1,612 @@
+[
+  {
+    "id": "0001",
+    "title": "엔티티 타입·상수·RouteState 정의",
+    "epic": "Epic 1. 데이터 타입",
+    "task": {
+      "description": "src/lib/types.ts에 SPEC Data Models 전체를 순수 타입으로 정의한다. TaxType/Workplace/WorkRecord/PayCheck/SuspectKind/PaySuspect/AppSettings, 계산 결과 DailyPay/WeeklyHoliday/MonthlyPayroll/PayAnalysis, 상수 STORAGE_KEYS·DEFAULT_SETTINGS·MINIMUM_WAGE_BY_YEAR·SCHEMA_VERSION·MAX_WORKPLACES·MAX_SERIALIZED_LENGTH·COLOR_TOKENS, 그리고 페이지 간 navigate state 계약인 RouteState를 선언한다. 런타임 로직은 상수 선언 외 금지.",
+      "acceptance_criteria": [
+        "npx tsc --noEmit(strict) 통과하고 파일 내 function 선언 0건, DOM/localStorage 참조 0건, React import 0건",
+        "AppSettings에 id/createdAt/updatedAt 필드가 0개이고 onboardingSeenAt·disclaimerAckAt·activeWorkplaceId·rewardUnlocks·schemaVersion 5개 필드를 모두 보유",
+        "Workplace·WorkRecord·PayCheck 3종 모두 createdAt: string과 updatedAt: string 보유",
+        "RouteState의 모든 키('/','/onboarding','/record/new','/record/edit','/records','/breakdown','/check','/check/result','/workplace','/workplace/new','/workplace/detail')가 | undefined 를 포함",
+        "MINIMUM_WAGE_BY_YEAR === { 2025: 10030, 2026: 10320 }, MAX_WORKPLACES === 5, MAX_SERIALIZED_LENGTH === 4500000"
+      ]
+    },
+    "covers": [
+      "F1-AC-8",
+      "F3-AC-8",
+      "F8-AC-6"
+    ],
+    "files": [
+      "src/lib/types.ts"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit strict 통과",
+      "모든 후속 패킷이 import할 수 있도록 전 타입·상수 export"
+    ],
+    "depends_on": [],
+    "db_schema": "interface Workplace { id: string; name: string; hourlyWage: number; isFiveOrMore: boolean; payday: number; taxType: TaxType; colorToken: string; createdAt: string; updatedAt: string } → localStorage key: 'apg:workplaces:v1' / WorkRecord → 'apg:records:v1' / PayCheck → 'apg:paychecks:v1' / AppSettings(싱글턴) → 'apg:settings:v1'",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0002",
+    "title": "저장소 원시 I/O — 키별 손상 복구 & 쓰기 가드",
+    "epic": "Epic 1. 데이터 타입",
+    "task": {
+      "description": "src/lib/storage.ts에 readRaw<T>(key, fallback, isValid)(파싱 실패·형태 불일치 시 원본을 `${key}:corrupt:${Date.now()}`에 백업 후 원본 키를 fallback으로 덮어쓰고 fallback 반환, 내부 손상 플래그 set), writeRaw(key,value): {ok:true}|{ok:false;reason:'quota'|'size'}(직렬화 길이 4,500,000 초과 시 size, QuotaExceededError는 quota, throw 금지), consumeCorruptionFlag()(최초 1회만 true), 타입가드 isWorkplaceArray/isRecordArray/isPayCheckArray/isSettingsObject를 구현한다.",
+      "acceptance_criteria": [
+        "소스에 ':corrupt:' 리터럴이 백업키 조립부 1곳에만 등장하고 key 변수로 조립됨(apg:records:v1:corrupt 등 하드코딩 0건)",
+        "apg:workplaces:v1='[[bad' → [] 반환 + 백업키 apg:workplaces:v1:corrupt:{숫자} 생성, apg:settings:v1='[]' → DEFAULT_SETTINGS 반환 + 백업키 apg:settings:v1:corrupt:{숫자} 생성",
+        "apg:paychecks:v1='null' → [] 반환, 백업키 문자열에 'undefined' 미포함",
+        "백업 쓰기가 quota로 실패하면 백업 생략 후 폴백 반환만 수행하며 예외를 상위로 throw하지 않음",
+        "consumeCorruptionFlag()가 손상 발생 후 첫 호출만 true, 두 번째부터 false",
+        "파일 내 console.error 0건, React/TDS import 0건"
+      ]
+    },
+    "covers": [
+      "F1-AC-6"
+    ],
+    "files": [
+      "src/lib/storage.ts"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "모든 쓰기 경로가 결과 객체를 반환하고 throw 0건"
+    ],
+    "depends_on": [
+      "0001"
+    ],
+    "db_schema": "localStorage keys: apg:workplaces:v1(Workplace[]|[]), apg:records:v1(WorkRecord[]|[]), apg:paychecks:v1(PayCheck[]|[]), apg:settings:v1(AppSettings|DEFAULT_SETTINGS), 백업키 `${key}:corrupt:${Date.now()}`",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0003",
+    "title": "컬렉션 리포지토리 · 검증 · 스키마 마이그레이션",
+    "epic": "Epic 1. 데이터 타입",
+    "task": {
+      "description": "src/lib/repository.ts에 storage.ts만을 통한 CRUD를 구현한다. getWorkplaces/saveWorkplace(crypto.randomUUID, createdAt===updatedAt)/updateWorkplace(createdAt 유지·updatedAt 갱신), getRecords/getRecordById/saveRecord/updateRecord/deleteRecord, isDuplicateRecord({id?,workplaceId,date,startTime})(id 있으면 자기 자신 제외 — 생성·수정 공용), getPayChecks/upsertPayCheck, getSettings/patchSettings, runMigration(), validateWorkplace/validateRecord를 제공한다.",
+      "acceptance_criteria": [
+        "updateWorkplace('wp-1',{hourlyWage:12000}) 후 createdAt 불변이고 updatedAt > createdAt",
+        "동일 (workplaceId,yearMonth)로 upsertPayCheck 2회 호출 후 해당 행 수가 1건이며 id·createdAt 유지 + updatedAt > createdAt",
+        "isDuplicateRecord({id:'rec-1',workplaceId:'wp-1',date:'2026-03-02',startTime:'18:00'})가 rec-1 자신만 매칭될 때 false, 다른 레코드가 같은 조합이면 true",
+        "runMigration() 후 getSettings() 키 집합에 id/createdAt/updatedAt 없음, Workplace·WorkRecord·PayCheck의 updatedAt 누락분은 createdAt 값으로 백필됨",
+        "validateRecord가 형식 오류 시 '시각을 HH:mm 형식(00:00~23:59)으로 입력해주세요', 휴게 과다 시 '휴게시간이 근무시간보다 길 수 없어요' 문자열 반환",
+        "모든 쓰기 경로가 writeRaw 결과를 확인해 {ok:false,reason}을 호출자에게 반환(throw 0건), console.error 0건, React import 0건"
+      ]
+    },
+    "covers": [
+      "F1-AC-8",
+      "F2-AC-6",
+      "F2-AC-9",
+      "F6-AC-6"
+    ],
+    "files": [
+      "src/lib/repository.ts"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "localStorage 직접 접근 0건(storage.ts 경유만)"
+    ],
+    "depends_on": [
+      "0002"
+    ],
+    "db_schema": "interface PayCheck { id,workplaceId,yearMonth,actualPaidAmount,calculatedGross,calculatedNet,diff,suspects,createdAt,updatedAt } → 'apg:paychecks:v1' (upsert key: workplaceId+yearMonth)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0004",
+    "title": "연쇄 삭제 트랜잭션 & 활성 근무지 포인터 정합성",
+    "epic": "Epic 1. 데이터 타입",
+    "task": {
+      "description": "src/lib/workplaceIntegrity.ts에 deleteWorkplaceCascade(id)(3키 스냅샷 → workplaces에서 제거 + records·paychecks의 workplaceId 일치 행 전부 제거 → 쓰기 하나라도 실패하면 3키 전부 스냅샷 복원 후 {ok:false} → 성공 시 {ok:true,nextActiveId}), resolveActiveWorkplaceId(), countLinked(id), canAddWorkplace()를 구현한다. 모든 저장은 repository 경유.",
+      "acceptance_criteria": [
+        "wp-1(기록3+분석2)/wp-2(기록2+분석1) 상태에서 deleteWorkplaceCascade('wp-1') 후 getRecords().length===2, getPayChecks().length===1, workplaceId==='wp-1' 행 0건",
+        "쓰기 실패를 주입하면 3키 모두 삭제 전 값과 정확히 동일하고 {ok:false} 반환(고아 레코드 0건)",
+        "activeWorkplaceId==='wp-1'이고 wp-1(2026-01-01)/wp-2(2026-02-01)/wp-3(2026-03-01)일 때 wp-1 삭제 → 저장된 activeWorkplaceId==='wp-2'(createdAt 오름차순 첫 id)",
+        "근무지를 전부 삭제하면 activeWorkplaceId===null 저장, 비활성 근무지 삭제 시 포인터 불변",
+        "canAddWorkplace()가 배열 길이 5에서 false, 4에서 true",
+        "console.error 0건, throw 0건"
+      ]
+    },
+    "covers": [
+      "F1-AC-3",
+      "F1-AC-5",
+      "F1-AC-9",
+      "F4-AC-10",
+      "F7-AC-10"
+    ],
+    "files": [
+      "src/lib/workplaceIntegrity.ts"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "롤백 경로 포함 전 분기가 결과 객체 반환"
+    ],
+    "depends_on": [
+      "0003"
+    ],
+    "db_schema": "연쇄 삭제 대상 키: apg:workplaces:v1, apg:records:v1, apg:paychecks:v1 / 포인터: apg:settings:v1.activeWorkplaceId",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0005",
+    "title": "급여 계산 엔진 ① 일별 계산 (순수 함수)",
+    "epic": "Epic 2. 계산 서비스",
+    "task": {
+      "description": "src/lib/payrollDaily.ts에 parseHHmm(정규식 ^([01]\\d|2[0-3]):([0-5]\\d)$ 불일치 시 null), calcWorkedMinutes(start,end,breakMinutes)(end<=start면 +24h), calcNightMinutes(22:00~06:00 교집합, 자정 넘김 포함), calcDaily(record, workplace): DailyPay | null을 구현한다. 비정상 입력(시각 파싱 실패, breakMinutes 범위 밖, 실근로 ≤ 0)은 null 반환. 각 항목 floor 후 합산, 5인 미만이면 가산 0원.",
+      "acceptance_criteria": [
+        "wage 10320·5인이상·18:00~23:00·break30 → workedMinutes===270, basePay===46440, nightMinutes===60, nightPay===5160, total===51600",
+        "22:00~02:00·break0 → workedMinutes===240, basePay===41280, total===61920",
+        "isFiveOrMore===false·13:00~24:00·break60 → nightPay===0, overtimePay===0, holidayPay===0, basePay===103200",
+        "09:00~21:00·break60(5인이상) → overtimeMinutes===180, overtimePay===15480, nightMinutes===0",
+        "startTime:'abc' 또는 breakMinutes:-10 → null 반환, throw 0건, console.error 0건",
+        "Object.groupBy/Array.prototype.at/structuredClone/Intl.Segmenter 사용 0건, UI·저장소 import 0건"
+      ]
+    },
+    "covers": [
+      "F3-AC-1",
+      "F3-AC-2",
+      "F3-AC-3"
+    ],
+    "files": [
+      "src/lib/payrollDaily.ts"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "순수 함수만 export(부수효과 0건)"
+    ],
+    "depends_on": [
+      "0001"
+    ],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0006",
+    "title": "급여 계산 엔진 ② 주휴수당·최저임금·월 집계",
+    "epic": "Epic 2. 계산 서비스",
+    "task": {
+      "description": "src/lib/payrollMonthly.ts에 getWeekStart(date)(ISO week, 월요일 시작), groupByWeek(records), calcWeeklyHoliday(주 실근로 ≥ 15h면 min(주분,2400)/5/60×시급 floor, 미만이면 0), calcMonthly(records, workplace, yearMonth): MonthlyPayroll(daily·weeks·basePay·가산·weeklyHolidayPay·gross·net·minimumWage·isBelowMinimumWage·minimumWageShortfall)를 구현한다. 주휴는 해당 주 월요일이 속한 월에 귀속, taxType freelance3_3이면 net=floor(gross×0.967).",
+      "acceptance_criteria": [
+        "wage 10320, 2026-03-02(월)~03-06(금) 각 4시간 → weeks[0]이 {weekStart:'2026-03-02',weeklyMinutes:1200,eligible:true,amount:41280}와 일치하고 weeklyHolidayPay===41280",
+        "03-02~03-04 각 4시간(주 12h) → weeks[0].eligible===false, amount===0, weeklyHolidayPay===0",
+        "wage 9800 + 2026-03 기록 존재 → minimumWage===10320, isBelowMinimumWage===true, minimumWageShortfall===Math.floor(520*totalMinutes/60)",
+        "기록 0건으로 calcMonthly(...,'2026-04') → gross===0, net===0, daily.length===0, weeks.length===0, isBelowMinimumWage===false",
+        "gross===252840 + taxType 'freelance3_3' → net===244496",
+        "비정상 레코드(calcDaily가 null) 혼입 시 daily에서 제외하고 나머지만 집계, throw·console.error 0건"
+      ]
+    },
+    "covers": [
+      "F3-AC-4",
+      "F3-AC-5",
+      "F3-AC-8",
+      "F5-AC-3"
+    ],
+    "files": [
+      "src/lib/payrollMonthly.ts"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "payrollDaily만 import(저장소·UI import 0건)"
+    ],
+    "depends_on": [
+      "0005"
+    ],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0007",
+    "title": "미지급 분석 산출 · 리워드 해제 · 금액 포맷",
+    "epic": "Epic 2. 계산 서비스",
+    "task": {
+      "description": "src/lib/analysis.ts에 analyzePay(payroll, actualPaidAmount): {diff, isUnderpaid, suspects}(diff = calculatedNet - actualPaidAmount, 양수면 미지급 의심, 금액 0 초과인 weeklyHoliday·night·overtime·holiday·minimumWage 항목만 suspects에 label·amount·description과 함께 포함), isUnlocked(settings, workplaceId, yearMonth), grantUnlock(24시간 만료 ISO 저장), formatWon/parseWon을 구현한다.",
+      "acceptance_criteria": [
+        "calculatedNet 252840·actualPaidAmount 206400·주휴 41280·야간 5160 → diff===46440, suspects에 {kind:'weeklyHoliday',amount:41280}와 {kind:'night',amount:5160} 포함, suspects.length===2",
+        "actualPaidAmount 300000 → diff===-47160, isUnderpaid===false, suspects.length===0",
+        "grantUnlock 직후 isUnlocked===true, rewardUnlocks 값을 과거 ISO로 바꾸면 isUnlocked===false",
+        "formatWon(206400)==='206,400', parseWon('206,400')===206400, parseWon('abc')===0",
+        "React/TDS import 0건, console.error 0건, throw 0건"
+      ]
+    },
+    "covers": [
+      "F6-AC-2",
+      "F6-AC-3",
+      "F6-AC-4"
+    ],
+    "files": [
+      "src/lib/analysis.ts"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "rewardUnlocks 키 형식 `${workplaceId}:${yearMonth}` 준수"
+    ],
+    "depends_on": [
+      "0001"
+    ],
+    "db_schema": "AppSettings.rewardUnlocks: Record<`${workplaceId}:${yearMonth}`, ISO8601 만료시각(24h)> → 'apg:settings:v1'",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0008",
+    "title": "상태 관리 — AppDataProvider (React Context)",
+    "epic": "Epic 2. 계산 서비스",
+    "task": {
+      "description": "src/providers/AppDataProvider.tsx에 앱 전역 Context를 구현한다. 마운트 시 runMigration() 후 workplaces/records/payChecks/settings 로드, loading 상태 노출, addWorkplace/editWorkplace/removeWorkplace(연쇄 삭제)/addRecord/editRecord/removeRecord/savePayCheck/setActiveWorkplace/patchSettings 액션 제공, 손상 플래그 감지 시 TDS Toast '일부 데이터를 불러오지 못했어요'를 1회만 표시. 쓰기 실패 시 상태 롤백 + 저장공간 부족 Toast.",
+      "acceptance_criteria": [
+        "loading이 초기 true → 로드 완료 후 false로 전환되어 페이지 Skeleton 제어 가능",
+        "여러 저장소 키가 동시에 손상돼도 '일부 데이터를 불러오지 못했어요' Toast 렌더 횟수가 정확히 1",
+        "removeWorkplace가 {ok:false}를 받으면 컨텍스트의 workplaces/records/payChecks가 삭제 전 값과 동일(롤백)",
+        "쓰기 실패 reason==='quota'|'size'일 때 '저장 공간이 부족합니다. 오래된 기록을 삭제해주세요' Toast 표시 후 상태 롤백",
+        "Provider로 감싼 더미 컴포넌트 렌더 성공 + npx tsc --noEmit 통과, Provider 내부 console.error 0건, 네트워크 호출 0건"
+      ]
+    },
+    "covers": [
+      "F1-AC-7",
+      "F4-AC-9",
+      "F7-AC-9"
+    ],
+    "files": [
+      "src/providers/AppDataProvider.tsx",
+      "src/hooks/useAppData.ts"
+    ],
+    "definition_of_done": [
+      "useAppData()가 Provider 밖에서 호출되면 명확한 에러 메시지",
+      "저장소 호출은 repository/workplaceIntegrity 경유만"
+    ],
+    "depends_on": [
+      "0004"
+    ],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0009",
+    "title": "홈 대시보드 `/`",
+    "epic": "Epic 3. 코어 UI 페이지",
+    "task": {
+      "description": "src/pages/Home.tsx를 구현한다. 월 네비게이션, 근무지 전환 Chip, SummaryHero(CountUp 예상 급여), Sparkline(일별 누적), MiniBar(기본/주휴/가산 비중), 최근 기록 5건 Card, '기록 추가하기' CTA, AdSlot 배너를 배치한다. 로딩/기록 0건/근무지 0건/손상 4가지 상태를 모두 렌더하고 useAppData + calcMonthly로 실시간 계산한다.",
+      "acceptance_criteria": [
+        "로딩 중에는 SummaryHero 자리 Skeleton 1개 + ListRow Skeleton 3개만 보이고 '0원' 선노출 0건",
+        "근무지 0개면 EmptyState('등록된 근무지가 없어요' + '근무지 추가하기' Button)만 렌더되고 cta-add-record와 기록 빈 상태는 동시 렌더 0건",
+        "근무지 Chip 탭 시 activeWorkplaceId가 저장되고 히어로 금액이 해당 근무지 계산값으로 갱신",
+        "현재 월에서 '›' 버튼 disabled===true, '‹'/'›' 터치 타깃 44×44px 이상",
+        "히어로 탭 시 navigate('/breakdown',{state:{workplaceId,yearMonth}}), cta-add-record 탭 시 navigate('/record/new',{state:{workplaceId,date:today}})",
+        "TDS 컴포넌트에 인라인 style/Tailwind p-*·m-* 0건, HEX 색상 0건"
+      ]
+    },
+    "covers": [
+      "F4-AC-1",
+      "F4-AC-2",
+      "F4-AC-9",
+      "F4-AC-10"
+    ],
+    "files": [
+      "src/pages/Home.tsx"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "AdSlot이 최근 기록 Card 아래·FloatingTabBar 위에 위치해 겹침 0px"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: StatusPanel. Whitelist: ScreenScaffold, Top, Button, Chip, SummaryHero, Amount, Sparkline, MiniBar, Card, ListRow, Badge, Spacing, Paragraph.Text, Skeleton, Toast, AdSlot, Asset.ContentIcon, EmptyState, FloatingTabBar.\nLayout:\n<ScreenScaffold>\n  <Top title={<Top.TitleParagraph>{`${y}년 ${m}월`}</Top.TitleParagraph>} upper={<MonthNav onPrev={prev} onNext={next} nextDisabled={isCurrentMonth} />} /> // ‹ › 각 44×44\n  <div style={{display:'flex',gap:8,overflowX:'auto'}}>{workplaces.map(w => <Chip key={w.id} label={w.name} variant={w.id===activeId?'filled':'outlined'} />)}</div>\n  <Spacing size={16} />\n  <SummaryHero data-testid=\"pay-hero\" label=\"이번 달 예상 급여\" value={<Amount value={gross} unit=\"원\" typography=\"t1\" countUp />} caption={`이번 달 예상 급여 · ${hours}시간`} />\n  <Spacing size={16} />\n  <Sparkline data-testid=\"pay-trend-sparkline\" points={dailyCumulative} />\n  <Spacing size={12} />\n  <MiniBar data-testid=\"pay-composition-bar\" segments={[기본, 주휴, 가산]} />\n  <Spacing size={24} />\n  <Paragraph.Text typography=\"t4\">최근 기록</Paragraph.Text>\n  <Spacing size={12} />\n  <Card data-testid=\"recent-records-card\">{recent5.map(r => <ListRow key={r.id} onClick={()=>goEdit(r.id)} contents={<ListRow.Texts type=\"2RowTypeA\" top={r.dateLabel} bottom={`${r.start}–${r.end} · ${r.durationLabel}`} />} right={<Badge>{r.tag}</Badge>} />)}</Card>\n  <Spacing size={16} />\n  <Button data-testid=\"cta-add-record\" variant=\"fill\" size=\"large\" display=\"block\" onClick={addRecord}>기록 추가하기</Button>\n  <Spacing size={16} />\n  <AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID} />\n</ScreenScaffold>\nStates: Loading = SummaryHero 자리 Skeleton 1개 + ListRow Skeleton 3개, '0원' 선노출 금지 / Empty(기록0·근무지≥1) = Sparkline·MiniBar 대신 EmptyState(Asset.ContentIcon + '아직 이번 달 기록이 없어요'), 히어로 0원, cta-add-record 노출 / Empty(근무지0) = EmptyState('등록된 근무지가 없어요' + Button '근무지 추가하기'), 기록 빈 상태·cta-add-record 동시 렌더 금지 / Error = <Toast open position=\"bottom\">일부 데이터를 불러오지 못했어요</Toast> 1회 + 히어로 0원 + 빈 상태.\nInteractions: 근무지 Chip 탭 → haptic('tickWeak') + activeWorkplaceId 저장 + 히어로 재계산 / ‹› 탭 → haptic('tickWeak'), 현재 월에서 › disabled / cta-add-record → haptic('success') → navigate('/record/new',{state:{workplaceId,date:today}}) / 히어로 탭 → navigate('/breakdown',{state:{workplaceId,yearMonth}})."
+  },
+  {
+    "id": "0010",
+    "title": "기록 입력/수정 페이지 `/record/new`, `/record/:id/edit`",
+    "epic": "Epic 3. 코어 UI 페이지",
+    "task": {
+      "description": "src/pages/RecordForm.tsx를 구현한다. 날짜·출근·퇴근·휴게·휴일 토글·메모 입력, 실근로시간과 예상 일급 실시간 미리보기, 하단 SubmitFooter 저장 버튼을 제공한다. 신규/수정 모드를 라우트로 분기하고, 저장 시 validateRecord + isDuplicateRecord(수정 시 자기 자신 제외)를 통과해야만 저장한다. 수정 모드는 우상단 삭제 버튼 + AlertDialog 확인.",
+      "acceptance_criteria": [
+        "출근 19:00·퇴근 02:00 입력 시 미리보기에 익일 퇴근 안내와 실근로 7시간(휴게 0 기준)이 표시",
+        "시각 형식 오류 시 TextField error 상태 + '시각을 HH:mm 형식(00:00~23:59)으로 입력해주세요' 노출, 저장 버튼 눌러도 저장 0건",
+        "동일 (workplaceId,date,startTime) 기록이 이미 있으면 신규·수정 양쪽 모두 저장 거부 + Toast '같은 시간에 저장된 기록이 있어요' 표시, 수정 모드에서 자기 자신과만 충돌하면 저장 성공",
+        "휴게시간 미입력 시 근무 4h 이상 30분·8h 이상 60분이 자동 채워져 미리보기에 반영",
+        "삭제 버튼 → AlertDialog 왼쪽 버튼 라벨 '닫기', 확인 시 삭제 후 navigate(-1)",
+        "저장 버튼이 SubmitFooter 내부 display=\"block\"이고 좌측 글자폭 버튼 0건, HEX 0건"
+      ]
+    },
+    "covers": [
+      "F2-AC-1",
+      "F2-AC-6",
+      "F2-AC-9"
+    ],
+    "files": [
+      "src/pages/RecordForm.tsx"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "저장 성공 시 haptic('success') 후 이전 화면 복귀"
+    ],
+    "depends_on": [],
+    "db_schema": "interface WorkRecord { id; workplaceId; date:'YYYY-MM-DD'; startTime:'HH:mm'; endTime:'HH:mm'; breakMinutes:0~720; isHoliday:boolean; memo:0~50자; createdAt; updatedAt } → 'apg:records:v1'",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: FixedBottomCTA. Whitelist: ScreenScaffold, Top, TextField, Chip, Switch, Card, ListRow, Paragraph.Text, Spacing, Button, AlertDialog, Toast, Skeleton, SubmitFooter, EmptyState.\nLayout:\n<ScreenScaffold hideTabBar>\n  <Top title={<Top.TitleParagraph>{isEdit ? '기록 수정' : '근무 기록'}</Top.TitleParagraph>} right={isEdit && <Button variant=\"weak\" size=\"small\" color=\"danger\" onClick={openDelete}>삭제</Button>} />\n  <TextField label=\"날짜\" value={date} /> <Spacing size={12} />\n  <TextField label=\"출근 시각\" placeholder=\"09:00\" inputMode=\"numeric\" /> <Spacing size={12} />\n  <TextField label=\"퇴근 시각\" placeholder=\"18:00\" inputMode=\"numeric\" /> <Spacing size={12} />\n  <TextField label=\"휴게시간(분)\" inputMode=\"numeric\" /> <Spacing size={12} />\n  <ListRow contents={<ListRow.Texts type=\"1RowTypeA\" top=\"휴일 근무\" />} right={<Switch checked={isHoliday} onChange={...} />} />\n  <Spacing size={12} />\n  <TextField label=\"메모\" maxLength={50} />\n  <Spacing size={16} />\n  <Card>실근로 {hours}시간 {mins}분 · 예상 일급 {amount}원 (Paragraph.Text, 익일 퇴근 시 '익일 퇴근으로 계산했어요' 보조 문구)</Card>\n  <SubmitFooter><Button variant=\"fill\" size=\"large\" display=\"block\" onClick={save}>저장하기</Button></SubmitFooter>\n</ScreenScaffold>\nStates: Loading(수정 모드 조회) = TextField 자리 Skeleton 4개 / Error(존재하지 않는 id) = EmptyState '기록을 찾을 수 없어요' + Button '돌아가기' / 검증 실패 = TextField error 상태 + 하단 헬퍼 텍스트.\nInteractions: Switch 토글 → haptic('tickWeak') / 저장 → haptic('success'), 검증·중복 통과 시 저장 후 navigate(-1) / 삭제 → AlertDialog(왼쪽 버튼 '닫기', 오른쪽 '삭제하기'). 모든 터치 타깃 ≥44px, TDS 컴포넌트에 padding/margin 덮어쓰기 금지, 색상은 var(--tds-color-*)만."
+  },
+  {
+    "id": "0011",
+    "title": "급여 상세 페이지 `/breakdown`",
+    "epic": "Epic 3. 코어 UI 페이지",
+    "task": {
+      "description": "src/pages/Breakdown.tsx를 구현한다. location.state의 workplaceId·yearMonth(없으면 활성 근무지·이번 달 폴백)로 calcMonthly를 호출해 기본급/야간/연장/휴일/주휴수당/세금/실수령액을 Card + ListRow로 항목별 표시하고, 주차별 주휴 판정 목록, 최저임금 미달 경고, 개근 요건 한계 안내, 법적 효력 고지, AdSlot 배너를 배치한다.",
+      "acceptance_criteria": [
+        "항목 ListRow가 기본급·야간가산·연장가산·휴일가산·주휴수당·세금공제·실수령액 순으로 표시되고 각 금액 합이 gross/net과 일치",
+        "시급이 해당 연도 최저임금 미만이면 경고 Card에 '최저임금보다 낮아요' + 부족액(원)이 표시되고, 미만이 아니면 경고 0건",
+        "5인 미만 사업장이면 야간·연장·휴일 항목에 '5인 미만 사업장은 가산수당 의무가 없어요' 보조 문구 표시 + 금액 0원",
+        "주차별 목록에 각 주의 주 근로시간과 주휴 지급 여부(15시간 기준)가 표시되고, 개근 요건 한계 보조 텍스트 노출",
+        "화면 하단에 '법정 기준 자동 계산 결과이며 법적 효력이 없습니다' 고지가 항상 렌더",
+        "기록 0건이면 EmptyState + '기록 추가하기' Button, HEX 색상 0건, Tailwind p-*/m-* 0건"
+      ]
+    },
+    "covers": [
+      "F5-AC-1",
+      "F5-AC-2",
+      "F5-AC-3",
+      "F8-AC-3"
+    ],
+    "files": [
+      "src/pages/Breakdown.tsx"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "location.state가 없어도 크래시 없이 폴백 렌더"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: DetailList. Whitelist: ScreenScaffold, Top, Card, ListRow, Paragraph.Text, Amount, Badge, Chip, Spacing, Button, Skeleton, EmptyState, Asset.ContentIcon, AdSlot, MiniBar.\nLayout: <ScreenScaffold> <Top title={<Top.TitleParagraph>급여 상세</Top.TitleParagraph>} upper={월 표시} /> → SummaryHero 대신 Card로 총액(Amount typography=\"t2\") → <Spacing size={16} /> → MiniBar(기본/주휴/가산 비중) → <Spacing size={16} /> → Card(항목 내역: ListRow.Texts type=\"1RowTypeA\" 좌측 항목명 + right에 Amount) → <Spacing size={16} /> → Card(주차별 주휴: ListRow top='3월 2주차(3/9~3/15)' bottom='주 20시간' right=<Badge>지급</Badge>|<Badge>미지급</Badge>) → 보조 Paragraph.Text(secondary) '개근 여부는 기록된 근무시간(주 15시간)만으로 판정해요' → 최저임금 미달 시 경고 Card(Asset.ContentIcon + 부족액) → <Spacing size={16} /> → Paragraph.Text(st11, secondary) '법정 기준 자동 계산 결과이며 법적 효력이 없습니다' → <Spacing size={16} /> → <AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID} />.\nStates: Loading = Card 자리 Skeleton 3개 / Empty(기록 0건) = EmptyState(Asset.ContentIcon + '이번 달 기록이 없어요' + Button '기록 추가하기') / Error(근무지 없음) = EmptyState + Button '근무지 추가하기'.\nInteractions: 항목 ListRow 탭 시 확장 없이 정적 표시, 하단 Button '미지급 분석하기' → haptic('success') → navigate('/check',{state:{workplaceId,yearMonth}}). 간격은 Spacing만, 색상은 var(--tds-color-*)만."
+  },
+  {
+    "id": "0012",
+    "title": "미지급 분석 입력 페이지 `/check`",
+    "epic": "Epic 3. 코어 UI 페이지",
+    "task": {
+      "description": "src/pages/Check.tsx를 구현한다. 근무지·정산 월 선택, 계산된 실수령액 요약 Card, 실지급액 입력 TextField(천 단위 콤마 포맷, 0~100,000,000 검증), 하단 SubmitFooter '분석하기' 버튼을 제공한다. 검증 통과 시 navigate('/check/result',{state:{workplaceId,yearMonth,actualPaidAmount}})로 이동한다.",
+      "acceptance_criteria": [
+        "입력창에 '206400' 타이핑 시 '206,400'으로 즉시 포맷되고 내부 상태는 숫자 206400",
+        "금액 미입력 또는 100,000,000 초과 시 TextField error + '0원 이상 1억원 이하로 입력해주세요' 표시, '분석하기' 눌러도 라우팅 0건",
+        "요약 Card에 해당 월 계산 실수령액이 원 단위 콤마 포맷으로 표시되고 기록 0건이면 EmptyState + '기록 추가하기' Button",
+        "'분석하기' 탭 → haptic('success') → navigate('/check/result',{state:{workplaceId,yearMonth,actualPaidAmount}})",
+        "1차 액션이 SubmitFooter 내부 display=\"block\" Button이고 터치 타깃 ≥44px, HEX 0건"
+      ]
+    },
+    "covers": [
+      "F6-AC-1"
+    ],
+    "files": [
+      "src/pages/Check.tsx"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "location.state 없이 진입해도 활성 근무지·이번 달로 폴백"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: FixedBottomCTA. Whitelist: ScreenScaffold, Top, Chip, Card, TextField, Paragraph.Text, Amount, Spacing, Button, SubmitFooter, Toast, Skeleton, EmptyState.\nLayout: <ScreenScaffold hideTabBar> <Top title={<Top.TitleParagraph>미지급 분석</Top.TitleParagraph>} /> → 근무지 Chip 가로 스크롤(flex, gap 8) → <Spacing size={12} /> → 월 선택 Chip(최근 6개월) → <Spacing size={16} /> → <Card>계산 실수령액 <Amount value={net} unit=\"원\" typography=\"t3\" /> · 근무 {hours}시간</Card> → <Spacing size={16} /> → <TextField label=\"실제 받은 금액\" inputMode=\"numeric\" suffix=\"원\" value={formatted} /> → <Spacing size={8} /> → Paragraph.Text(st11, secondary) '통장에 입금된 금액을 그대로 적어주세요' → <SubmitFooter><Button variant=\"fill\" size=\"large\" display=\"block\">분석하기</Button></SubmitFooter>.\nStates: Loading = Card 자리 Skeleton 1개 + TextField Skeleton / Empty(해당 월 기록 0건) = EmptyState('이번 달 기록이 없어 분석할 수 없어요' + Button '기록 추가하기'), 분석 버튼 disabled / Error = Toast '일부 데이터를 불러오지 못했어요'.\nInteractions: Chip 탭 → haptic('tickWeak') / 분석하기 → haptic('success') + 검증 후 navigate. TDS 컴포넌트에 인라인 padding/margin 금지, 간격은 Spacing만."
+  },
+  {
+    "id": "0013",
+    "title": "미지급 분석 결과 페이지 `/check/result` (리워드 광고 게이트)",
+    "epic": "Epic 3. 코어 UI 페이지",
+    "task": {
+      "description": "src/pages/CheckResult.tsx를 구현한다. 결과 본문을 TossRewardAd로 감싸 광고 시청 후 해제하고, 해제 상태는 24시간 유지한다. 차액 히어로, 미지급 의심 항목 목록(kind별 label·amount·description), PayCheck upsert 저장, 법적 효력 고지, 임금체불 신고 안내 텍스트(외부 링크 없이)를 표시한다.",
+      "acceptance_criteria": [
+        "최초 진입 시 결과 금액이 가려지고 TossRewardAd 게이트가 노출, 광고 시청 완료 후 결과 본문 렌더 + rewardUnlocks에 만료 ISO 저장",
+        "동일 (workplaceId,yearMonth)로 24시간 내 재진입 시 광고 없이 즉시 결과 표시, 만료 후 재진입 시 다시 게이트 노출",
+        "차액 > 0이면 히어로에 '{금액}원 덜 받았을 수 있어요'와 suspects 목록 표시, 차액 ≤ 0이면 '정상 지급으로 보여요' 상태 렌더 + suspects 0건",
+        "결과 확인 시 PayCheck가 upsert되어 동일 (workplaceId,yearMonth) 행이 1건으로 유지되고 updatedAt이 갱신",
+        "'법정 기준 자동 계산 결과이며 법적 효력이 없습니다' 고지와 신고 안내 텍스트가 렌더되며 window.open/location.href 호출 0건",
+        "HEX 색상 0건, Tailwind p-*/m-* 0건"
+      ]
+    },
+    "covers": [
+      "F6-AC-2",
+      "F6-AC-4",
+      "F6-AC-5",
+      "F6-AC-6"
+    ],
+    "files": [
+      "src/pages/CheckResult.tsx"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "state 없이 직접 진입 시 '/check'로 replace 이동"
+    ],
+    "depends_on": [],
+    "db_schema": "interface PayCheck { id; workplaceId; yearMonth; actualPaidAmount; calculatedGross; calculatedNet; diff; suspects: PaySuspect[]; createdAt; updatedAt } → 'apg:paychecks:v1' (upsert by workplaceId+yearMonth)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: RewardGatedResult. Whitelist: ScreenScaffold, Top, TossRewardAd, SummaryHero, Amount, Card, ListRow, Badge, Chip, Paragraph.Text, Spacing, Button, Skeleton, Toast, AdSlot, Asset.ContentIcon, EmptyState.\nLayout: <ScreenScaffold hideTabBar> <Top title={<Top.TitleParagraph>분석 결과</Top.TitleParagraph>} /> → <TossRewardAd slotId={import.meta.env.VITE_TOSS_AD_SLOT_ID}> (게이트 전: Card + Asset.ContentIcon + Paragraph.Text '짧은 광고를 보면 분석 결과를 볼 수 있어요' + Button '결과 보기') 내부에 결과 본문: <SummaryHero data-testid=\"diff-hero\" label={diff>0?'덜 받았을 수 있는 금액':'차액'} value={<Amount value={Math.abs(diff)} unit=\"원\" typography=\"t1\" countUp />} caption={`계산 ${net}원 · 실지급 ${paid}원`} /> → <Spacing size={16} /> → <Card>{suspects.map(s => <ListRow key={s.kind} contents={<ListRow.Texts type=\"2RowTypeA\" top={s.label} bottom={s.description} />} right={<Amount value={s.amount} unit=\"원\" />} />)}</Card> → <Spacing size={16} /> → Paragraph.Text(st11, secondary) '법정 기준 자동 계산 결과이며 법적 효력이 없습니다' → Paragraph.Text(st11, secondary) 임금체불 신고 안내(고용노동부 상담 안내 텍스트만, 링크 금지) → <Spacing size={16} /> → <AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID} /> </TossRewardAd>.\nStates: Loading = SummaryHero 자리 Skeleton 1개 + ListRow Skeleton 2개 / 정상 지급(diff ≤ 0) = 히어로 '정상 지급으로 보여요' + EmptyState 대신 안내 Card, suspects 목록 미표시 / Error = Toast '분석 결과를 불러오지 못했어요' + Button '다시 시도'.\nInteractions: '결과 보기' 탭 → haptic('success') → 광고 시청 → 해제 저장(24h) → 결과 렌더 + PayCheck upsert / 하단 Button '기록 보기' → navigate('/records',{state:{workplaceId,yearMonth}})."
+  },
+  {
+    "id": "0014",
+    "title": "[부가] 기록 목록 페이지 `/records`",
+    "epic": "Epic 3. 코어 UI 페이지",
+    "task": {
+      "description": "src/pages/Records.tsx를 구현한다. 근무지·월 필터, 날짜 내림차순 기록 리스트(일자·시간·실근로·일급·휴일 Badge), 20건 단위 더보기 페이지네이션, 행 탭 시 수정 이동, 스와이프 없이 행 내 삭제 버튼 + AlertDialog 확인, 월 합계 요약 Card를 제공한다. 잘못된 state나 손상 데이터에서도 폴백 렌더한다.",
+      "acceptance_criteria": [
+        "기록 45건일 때 최초 20건 렌더 + '더보기' 탭마다 20건씩 추가되어 3회째에 '더보기' 버튼 사라짐",
+        "리스트가 date 내림차순, 같은 날짜는 startTime 내림차순으로 정렬",
+        "행 탭 시 navigate('/record/:id/edit'), 삭제 확인(AlertDialog 왼쪽 '닫기') 후 목록에서 즉시 제거되고 합계 Card 금액이 재계산",
+        "해당 월 기록 0건이면 EmptyState(Asset.ContentIcon + '이 달에는 기록이 없어요' + Button '기록 추가하기')",
+        "location.state의 workplaceId가 실재하지 않으면 활성 근무지로 폴백해 크래시 0건, 손상 시 Toast '일부 데이터를 불러오지 못했어요' 1회"
+      ]
+    },
+    "covers": [
+      "F7-AC-1",
+      "F7-AC-9",
+      "F7-AC-10"
+    ],
+    "files": [
+      "src/pages/Records.tsx"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "AdSlot이 FloatingTabBar와 겹치지 않음"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: FilteredList. Whitelist: ScreenScaffold, Top, Chip, Card, ListRow, Badge, Amount, Paragraph.Text, Spacing, Button, AlertDialog, Toast, Skeleton, EmptyState, Asset.ContentIcon, AdSlot, FloatingTabBar.\nLayout: <ScreenScaffold> <Top title={<Top.TitleParagraph>기록</Top.TitleParagraph>} /> → 근무지 Chip 행(flex, gap 8, overflowX auto) → <Spacing size={8} /> → 월 Chip 행(최근 6개월) → <Spacing size={16} /> → <Card>월 합계: 근무 {days}일 · {hours}시간 · <Amount value={gross} unit=\"원\" typography=\"t3\" /></Card> → <Spacing size={16} /> → <Card>{page.map(r => <ListRow key={r.id} onClick={()=>goEdit(r.id)} contents={<ListRow.Texts type=\"2RowTypeA\" top={`${r.md}(${r.dow})`} bottom={`${r.start}–${r.end} · ${r.durationLabel}`} />} right={<><Badge>{r.isHoliday?'휴일':'평일'}</Badge><Amount value={r.total} unit=\"원\" /></>} />)}</Card> → <Spacing size={12} /> → <Button variant=\"weak\" size=\"large\" display=\"block\" onClick={loadMore}>더보기</Button>(남은 항목 있을 때만) → <Spacing size={16} /> → <AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID} />.\nStates: Loading = ListRow Skeleton 5개 / Empty = EmptyState(Asset.ContentIcon + '이 달에는 기록이 없어요' + Button '기록 추가하기') / Error = Toast '일부 데이터를 불러오지 못했어요' 1회 + 빈 목록.\nInteractions: Chip 탭 → haptic('tickWeak') + 필터 적용 / 행 탭 → 수정 화면 / 삭제 → AlertDialog(왼쪽 '닫기', 오른쪽 '삭제하기') → haptic('success')."
+  },
+  {
+    "id": "0015",
+    "title": "[부가] 근무지 목록·등록·수정 페이지 `/workplace`",
+    "epic": "Epic 3. 코어 UI 페이지",
+    "task": {
+      "description": "src/pages/Workplace.tsx(목록)와 src/pages/WorkplaceForm.tsx(등록/수정)를 구현한다. 목록은 근무지 카드·활성 표시·연결 기록 수·'근무지 추가' CTA(5개 상한)·기기 저장 고지를 제공하고, 폼은 이름/시급/5인 이상 여부/급여일/세금유형/색상 토큰 입력과 삭제(연쇄 삭제 경고) AlertDialog를 제공한다.",
+      "acceptance_criteria": [
+        "근무지가 5개면 '근무지 추가' Button disabled + 안내 문구 '근무지는 최대 5개까지 등록할 수 있어요', 4개면 활성",
+        "이름 미입력 저장 시 '근무지 이름을 입력해주세요', 시급 0 이하 저장 시 '시급을 1원 이상 입력해주세요'가 TextField error로 표시되고 저장 0건",
+        "삭제 AlertDialog 본문에 연결된 기록 n건·분석 m건이 표기되고, 확인 시 연쇄 삭제 후 목록에서 사라지며 활성 근무지가 자동 재지정",
+        "저장 성공 시 navigate('/workplace',{state:{toast:'저장했어요'}})로 이동하고 목록에서 Toast 1회 표시",
+        "목록 하단에 '데이터는 이 기기에만 저장돼요. 앱이나 브라우저 데이터를 지우면 사라져요' 고지 렌더",
+        "HEX 색상 0건(colorToken은 var(--tds-color-*) 매핑), 터치 타깃 ≥44px"
+      ]
+    },
+    "covers": [
+      "F1-AC-3",
+      "F1-AC-5",
+      "F1-AC-9",
+      "F8-AC-5"
+    ],
+    "files": [
+      "src/pages/Workplace.tsx",
+      "src/pages/WorkplaceForm.tsx"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "등록/수정 모드가 라우트 파라미터로 분기되고 state.from==='onboarding'이면 저장 후 '/'로 replace 이동"
+    ],
+    "depends_on": [],
+    "db_schema": "interface Workplace { id; name:1~20자; hourlyWage:1~1000000; isFiveOrMore; payday:1~31; taxType:'none'|'freelance3_3'; colorToken:'blue'|'green'|'purple'|'orange'; createdAt; updatedAt } → 'apg:workplaces:v1' (최대 5개)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "목록(Pattern: CardList) Whitelist: ScreenScaffold, Top, Card, ListRow, Badge, Chip, Paragraph.Text, Spacing, Button, Toast, Skeleton, EmptyState, Asset.ContentIcon, FloatingTabBar.\n<ScreenScaffold> <Top title={<Top.TitleParagraph>근무지</Top.TitleParagraph>} /> → <Card>{workplaces.map(w => <ListRow key={w.id} onClick={()=>goDetail(w.id)} contents={<ListRow.Texts type=\"2RowTypeA\" top={w.name} bottom={`시급 ${wage}원 · 매월 ${w.payday}일 지급`} />} right={w.id===activeId ? <Badge>사용 중</Badge> : undefined} />)}</Card> → <Spacing size={16} /> → <Button variant=\"fill\" size=\"large\" display=\"block\" disabled={count>=5} onClick={()=>navigate('/workplace/new')}>근무지 추가하기</Button> → 상한 시 Paragraph.Text(st11, secondary) '근무지는 최대 5개까지 등록할 수 있어요' → <Spacing size={24} /> → Paragraph.Text(st11, secondary) '데이터는 이 기기에만 저장돼요. 앱이나 브라우저 데이터를 지우면 사라져요'.\n목록 States: Loading = ListRow Skeleton 3개 / Empty = EmptyState(Asset.ContentIcon + '등록된 근무지가 없어요' + Button '근무지 추가하기') / Success toast = <Toast open position=\"bottom\">저장했어요</Toast> 1회.\n폼(Pattern: FixedBottomCTA) Whitelist: ScreenScaffold, Top, TextField, Switch, Chip, ListRow, Card, Paragraph.Text, Spacing, Button, AlertDialog, Toast, SubmitFooter.\n<ScreenScaffold hideTabBar> <Top title={<Top.TitleParagraph>{isEdit?'근무지 수정':'근무지 등록'}</Top.TitleParagraph>} right={isEdit && <Button variant=\"weak\" size=\"small\" color=\"danger\">삭제</Button>} /> → TextField '근무지 이름'(maxLength 20) → Spacing 12 → TextField '시급'(inputMode numeric, suffix 원) → Spacing 12 → ListRow '5인 이상 사업장' + Switch → Spacing 12 → TextField '급여일'(1~31) → Spacing 12 → 세금 Chip 2개('원천징수 없음','3.3% 공제') → Spacing 12 → 색상 Chip 4개(blue/green/purple/orange) → <SubmitFooter><Button variant=\"fill\" size=\"large\" display=\"block\">저장하기</Button></SubmitFooter>.\nInteractions: Switch/Chip 탭 → haptic('tickWeak') / 저장 → haptic('success') / 삭제 AlertDialog 왼쪽 버튼 '닫기', 본문에 연결 기록·분석 수 표기."
+  },
+  {
+    "id": "0016",
+    "title": "[부가] 온보딩 `/onboarding` · 404 페이지",
+    "epic": "Epic 3. 코어 UI 페이지",
+    "task": {
+      "description": "src/pages/Onboarding.tsx(3단계 소개 → '시작하기' 시 onboardingSeenAt 저장 후 '/workplace/new'로 replace 이동)와 src/pages/NotFound.tsx(존재하지 않는 경로 안내 + 홈으로 이동 Button)를 구현한다. 온보딩 단계 Chip은 표시 전용이며 FloatingTabBar를 숨긴다.",
+      "acceptance_criteria": [
+        "data-testid=\"onboarding-step\" 요소가 항상 정확히 1개이고 단계 Chip에 onClick 0건",
+        "'시작하기' 탭 후 apg:settings:v1의 onboardingSeenAt이 ISO8601 문자열로 저장",
+        "replace:true로 이동하므로 뒤로가기로 /onboarding 복귀 0건",
+        "1차 액션 Button이 SubmitFooter 내부에 있고 높이 ≥48px, 좌측 글자폭 버튼 0건",
+        "NotFound가 EmptyState + '홈으로 가기' Button을 렌더하고 탭 시 navigate('/',{replace:true})",
+        "TDS 컴포넌트에 인라인 style·Tailwind p-*/m-* 0건, HEX 0건"
+      ]
+    },
+    "covers": [
+      "F8-AC-1",
+      "F8-AC-2"
+    ],
+    "files": [
+      "src/pages/Onboarding.tsx",
+      "src/pages/NotFound.tsx"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "온보딩·404 모두 ScreenScaffold로 감싸짐"
+    ],
+    "depends_on": [],
+    "db_schema": "AppSettings.onboardingSeenAt: string | null → 'apg:settings:v1'",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "온보딩 Pattern: FixedBottomCTA. Whitelist: ScreenScaffold, Top, Asset.ContentIcon, Paragraph.Text, Chip, Spacing, SubmitFooter, Button.\n<ScreenScaffold hideTabBar>\n  <Top title={<Top.TitleParagraph>{STEP[i].title}</Top.TitleParagraph>} />\n  <Spacing size={32} />\n  <div style={{display:'flex',justifyContent:'center'}}><Asset.ContentIcon name={STEP[i].icon} size={96} /></div>\n  <Spacing size={24} />\n  <div data-testid=\"onboarding-step\"><Paragraph.Text typography=\"t3\">{STEP[i].title}</Paragraph.Text><Spacing size={8} /><Paragraph.Text typography=\"st11\" color=\"secondary\">{STEP[i].desc}</Paragraph.Text></div>\n  <Spacing size={24} />\n  <div style={{display:'flex',gap:8,justifyContent:'center'}}>{[0,1,2].map(n => <Chip key={n} label={`${n+1}`} variant={n===i?'filled':'outlined'} />)}</div>\n  <SubmitFooter><Button variant=\"fill\" size=\"large\" display=\"block\" onClick={next}>{i < 2 ? '다음' : '시작하기'}</Button></SubmitFooter>\n</ScreenScaffold>\nSTEP 문구: '출퇴근만 기록하세요' / '주휴수당까지 자동 계산' / '미지급 여부까지 확인'. 단계 Chip은 표시 전용(onClick 금지).\nStates: Loading/Empty/Error 없음(정적 화면).\nInteractions: '다음' → generateHapticFeedback({type:'tickWeak'}) + step+1 / '시작하기' → haptic('success') → onboardingSeenAt 저장 → navigate('/workplace/new',{replace:true,state:{from:'onboarding'}}).\n404: <ScreenScaffold hideTabBar><Top title={<Top.TitleParagraph>페이지를 찾을 수 없어요</Top.TitleParagraph>} /><EmptyState Asset.ContentIcon + Paragraph.Text '주소가 바뀌었거나 삭제된 화면이에요' /><SubmitFooter><Button variant=\"fill\" size=\"large\" display=\"block\">홈으로 가기</Button></SubmitFooter></ScreenScaffold>."
+  },
+  {
+    "id": "0017",
+    "title": "라우팅 배선 + 전역 Provider (진입점 소유)",
+    "epic": "4",
+    "task": {
+      "description": "src/App.tsx에서 BrowserRouter 하위에 AppDataProvider를 배치하고 전 화면 라우트를 연결한다. '/', '/onboarding', '/record/new', '/record/:id/edit', '/records', '/breakdown', '/check', '/check/result', '/workplace', '/workplace/new', '/workplace/:id', '*'(404). 온보딩 미완료 시 '/'에서 '/onboarding'으로 replace 리다이렉트하고, FloatingTabBar(홈·기록·분석·근무지)를 배선한다. main.tsx는 수정 금지.",
+      "acceptance_criteria": [
+        "12개 라우트 전부 직접 URL 진입 시 흰 화면 없이 해당 페이지가 렌더되고 정의되지 않은 경로는 NotFound 렌더",
+        "onboardingSeenAt===null이면 '/' 진입 시 '/onboarding'으로 replace 이동, 값이 있으면 리다이렉트 0건",
+        "FloatingTabBar가 홈·기록·분석·근무지 4탭을 표시하고 현재 경로 탭에 컬러 틴트 적용, 온보딩·폼 화면에서는 숨김",
+        "AppDataProvider가 라우터 내부 최상단에 1회만 마운트되어 모든 페이지에서 useAppData 호출 성공",
+        "npm run build 성공 + npx tsc --noEmit 통과, src/main.tsx 변경 0줄"
+      ]
+    },
+    "covers": [
+      "F8-AC-4"
+    ],
+    "files": [
+      "src/App.tsx"
+    ],
+    "definition_of_done": [
+      "App.tsx를 수정하는 패킷은 전체에서 이 패킷 1개",
+      "라우트 이동 시 navigate state가 RouteState 타입과 일치"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [
+      "react-router-dom"
+    ],
+    "ui_requirements": "FloatingTabBar(템플릿 제공) 4탭: 홈('/'), 기록('/records'), 분석('/check'), 근무지('/workplace'). 활성 탭은 컬러 틴트, 비활성은 기본 색. position fixed 하단 요소는 paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' 적용. 온보딩·기록 폼·근무지 폼·분석 결과에서는 hideTabBar. 라우트 전환 시 스크롤 위치 최상단 초기화. HEX 색상 0건, 모든 페이지는 ScreenScaffold로 감싸진 상태여야 함."
+  },
+  {
+    "id": "0018",
+    "title": "광고·햅틱 헬퍼 컴포넌트 + 최종 UX 폴리시",
+    "epic": "Epic 4. 통합",
+    "task": {
+      "description": "src/components/MonthNav.tsx(‹ › 각 44×44 터치 타깃, nextDisabled 지원), src/components/LegalNotice.tsx('법정 기준 자동 계산 결과이며 법적 효력이 없습니다' 고지 텍스트 컴포넌트), src/hooks/useHaptic.ts(generateHapticFeedback 래퍼, success/tickWeak, 실패해도 앱 크래시 없음)를 만들고 결과·데이터 화면에서 재사용한다. App.tsx/main.tsx는 수정하지 않는다.",
+      "acceptance_criteria": [
+        "MonthNav의 이전/다음 버튼 실제 렌더 크기가 각각 44×44px 이상이고 nextDisabled=true일 때 다음 버튼 disabled 속성 존재",
+        "LegalNotice가 Paragraph.Text(st11, secondary)로 정확히 '법정 기준 자동 계산 결과이며 법적 효력이 없습니다' 문자열을 렌더",
+        "useHaptic()의 haptic('success')/haptic('tickWeak') 호출 시 SDK가 없거나 throw해도 예외가 전파되지 않고 console.error 0건",
+        "세 파일 어디에도 HEX 색상, Tailwind p-*/m-*, 외부 UI 라이브러리 import 0건",
+        "npm run build 성공 + 프로덕션 번들에 console.error 0건, files에 src/App.tsx·src/main.tsx 미포함"
+      ]
+    },
+    "covers": [
+      "F8-AC-3",
+      "F8-AC-6"
+    ],
+    "files": [
+      "src/components/MonthNav.tsx",
+      "src/components/LegalNotice.tsx",
+      "src/hooks/useHaptic.ts"
+    ],
+    "definition_of_done": [
+      "tsc --noEmit 통과",
+      "AdSlot/TossRewardAd는 템플릿 것을 그대로 사용(재작성 0건)"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [
+      "@apps-in-toss/web-framework"
+    ],
+    "ui_requirements": "MonthNav: <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>에 TDS Button(variant='weak', size='small') 2개(‹, ›)와 가운데 Paragraph.Text(월 라벨). 각 버튼 minWidth/minHeight 44px. 색상은 var(--tds-color-*)만. LegalNotice: Paragraph.Text typography='st11' color='secondary'. useHaptic: import { generateHapticFeedback } from '@apps-in-toss/web-framework'를 try/catch로 감싼 훅, type은 'success' | 'tickWeak'."
+  }
+]
