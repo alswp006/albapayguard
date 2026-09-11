@@ -3,6 +3,7 @@ import { useLocation, useNavigate, type NavigateFunction } from 'react-router-do
 import { Top, Paragraph, Spacing, ListRow, Button } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { Card } from '@/components/Card';
+import { LegalNotice } from '@/components/LegalNotice';
 import { Amount } from '@/components/Amount';
 import { SummaryHero } from '@/components/SummaryHero';
 import { TossRewardAd } from '@/components/TossRewardAd';
@@ -197,7 +198,7 @@ function ResultBody({
 
       <Spacing size={16} />
 
-      <Paragraph.Text typography="st11">법정 기준 자동 계산 결과이며 법적 효력이 없습니다</Paragraph.Text>
+      <LegalNotice testId="check-result-disclaimer" />
       <Spacing size={8} />
       <Paragraph.Text typography="st11">
         임금체불이 의심되면 사업장 관할 고용노동부 고객센터(국번없이 1350)에서 상담받을 수 있어요

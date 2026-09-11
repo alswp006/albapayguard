@@ -1,24 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AlertDialog, Button, ListRow, Paragraph, Spacing, Switch, TextField, Toast, Top } from '@toss/tds-mobile';
-import { generateHapticFeedback } from '@apps-in-toss/web-framework';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { SubmitFooter } from '@/components/BottomCTA';
 import { Card } from '@/components/Card';
 import { EmptyState, LoadingState } from '@/components/StateView';
 import { useAppData } from '@/hooks/useAppData';
+import { useHaptic } from '@/hooks/useHaptic';
 import { isDuplicateRecord, validateRecord } from '@/lib/repository';
 import { calcDaily, parseHHmm } from '@/lib/payrollDaily';
 import { formatNumber } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
-
-function fireHaptic(type: 'success' | 'tickWeak') {
-  try {
-    Promise.resolve(generateHapticFeedback({ type })).catch(() => {});
-  } catch {
-    /* WebView 밖(브라우저/검수자 PC/jsdom)에서는 throw — 무시 */
-  }
-}
 
 function todayISODate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -57,6 +49,7 @@ function formatWorkedDuration(minutes: number): string {
 
 export default function RecordForm() {
   const navigate = useNavigate();
+  const { haptic } = useHaptic();
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const isEdit = Boolean(id);
@@ -175,7 +168,7 @@ export default function RecordForm() {
   }
 
   function handleToggleHoliday() {
-    fireHaptic('tickWeak');
+    haptic('tickWeak');
     setIsHoliday((prev) => !prev);
   }
 

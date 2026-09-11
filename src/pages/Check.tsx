@@ -1,25 +1,17 @@
 import { useState, type ChangeEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Top, Paragraph, Spacing, TextField, Button, Asset } from '@toss/tds-mobile';
-import { generateHapticFeedback } from '@apps-in-toss/web-framework';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { Card } from '@/components/Card';
 import { Amount } from '@/components/Amount';
 import { EmptyState, LoadingState } from '@/components/StateView';
 import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
+import { useHaptic } from '@/hooks/useHaptic';
 import { formatNumber } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
 
 const MAX_AMOUNT = 100_000_000;
 const AMOUNT_ERROR = '0원 이상 1억원 이하로 입력해주세요';
-
-function fireHaptic(type: 'tickWeak' | 'success') {
-  try {
-    Promise.resolve(generateHapticFeedback({ type })).catch(() => {});
-  } catch {
-    /* WebView 밖(브라우저/검수자 PC/jsdom)에서는 throw — 무시 */
-  }
-}
 
 function currentYearMonth(): string {
   const now = new Date();
@@ -86,6 +78,7 @@ function ChipButton({
 
 export default function Check() {
   const navigate = useNavigate();
+  const { haptic } = useHaptic();
   const location = useLocation();
   const state = (location.state as RouteState['/check']) ?? null;
   const { loading, workplaces, settings } = useAppData();
@@ -112,12 +105,12 @@ export default function Check() {
   const months = recentYearMonths(6);
 
   function handleSelectWorkplace(id: string) {
-    fireHaptic('tickWeak');
+    haptic('tickWeak');
     setWorkplaceOverride(id);
   }
 
   function handleSelectMonth(ym: string) {
-    fireHaptic('tickWeak');
+    haptic('tickWeak');
     setMonthOverride(ym);
   }
 
@@ -128,21 +121,21 @@ export default function Check() {
   }
 
   function handleAddRecord() {
-    fireHaptic('tickWeak');
+    haptic('tickWeak');
     navigate('/record/new', {
       state: { workplaceId: workplaceId ?? '', date: `${yearMonth}-01` } satisfies RouteState['/record/new'],
     });
   }
 
   function handleAddWorkplace() {
-    fireHaptic('tickWeak');
+    haptic('tickWeak');
     navigate('/workplace');
   }
 
   function handleAnalyze() {
     // 하단 고정 CTA(SubmitFooter)가 자동으로 쏘던 햅틱을 여기서 직접 쏜다 —
     // '/check'는 탭 루트라 고정 CTA를 쓰면 FloatingTabBar와 겹친다(본문 내 전체폭 버튼으로 대체).
-    fireHaptic('success');
+    haptic('success');
     const amount = parseAmount(amountDisplay);
     if (Number.isNaN(amount) || amount < 0 || amount > MAX_AMOUNT) {
       setAmountError(true);

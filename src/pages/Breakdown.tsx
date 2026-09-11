@@ -1,23 +1,16 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Top, Paragraph, Spacing, ListRow, Button, Badge, Asset } from '@toss/tds-mobile';
-import { generateHapticFeedback } from '@apps-in-toss/web-framework';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { Card } from '@/components/Card';
+import { LegalNotice } from '@/components/LegalNotice';
 import { Amount } from '@/components/Amount';
 import { MiniBar } from '@/components/MiniBar';
 import { EmptyState, LoadingState } from '@/components/StateView';
 import { AdSlot } from '@/components/AdSlot';
 import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
+import { useHaptic } from '@/hooks/useHaptic';
 import { formatNumber } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
-
-function fireHaptic(type: 'tickWeak' | 'success') {
-  try {
-    Promise.resolve(generateHapticFeedback({ type })).catch(() => {});
-  } catch {
-    /* WebView 밖(브라우저/검수자 PC/jsdom)에서는 throw — 무시 */
-  }
-}
 
 function currentYearMonth(): string {
   const now = new Date();
@@ -47,6 +40,7 @@ function FiveNote({ testId }: { testId: string }) {
 
 export default function Breakdown() {
   const navigate = useNavigate();
+  const { haptic } = useHaptic();
   const location = useLocation();
   const state = (location.state as RouteState['/breakdown']) ?? null;
   const { loading, workplaces, settings } = useAppData();
@@ -64,20 +58,20 @@ export default function Breakdown() {
   const payroll = useMonthlyPayroll(workplaceId, yearMonth);
 
   function handleAddRecord() {
-    fireHaptic('success');
+    haptic('success');
     navigate('/record/new', {
       state: { workplaceId: workplaceId ?? '', date: `${yearMonth}-01` } satisfies RouteState['/record/new'],
     });
   }
 
   function handleAddWorkplace() {
-    fireHaptic('tickWeak');
+    haptic('tickWeak');
     navigate('/workplace');
   }
 
   function handleAnalyze() {
     if (!workplaceId) return;
-    fireHaptic('success');
+    haptic('success');
     navigate('/check', { state: { workplaceId, yearMonth } satisfies RouteState['/check'] });
   }
 
@@ -266,9 +260,7 @@ export default function Breakdown() {
 
       <Spacing size={16} />
 
-      <div data-testid="breakdown-disclaimer">
-        <Paragraph.Text typography="st11">법정 기준 자동 계산 결과이며 법적 효력이 없습니다</Paragraph.Text>
-      </div>
+      <LegalNotice testId="breakdown-disclaimer" />
 
       <Spacing size={16} />
 

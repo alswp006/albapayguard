@@ -1,27 +1,19 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Top, ListRow, Badge, Paragraph, Spacing, Button, AlertDialog, Asset } from '@toss/tds-mobile';
-import { generateHapticFeedback } from '@apps-in-toss/web-framework';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { Card } from '@/components/Card';
 import { Amount } from '@/components/Amount';
 import { EmptyState, LoadingState } from '@/components/StateView';
 import { AdSlot } from '@/components/AdSlot';
 import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
+import { useHaptic } from '@/hooks/useHaptic';
 import { calcDaily } from '@/lib/payrollDaily';
 import type { RouteState } from '@/lib/types';
 
 const PAGE_SIZE = 20;
 const RECENT_MONTHS = 6;
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-
-function fireHaptic(type: 'tickWeak' | 'success') {
-  try {
-    Promise.resolve(generateHapticFeedback({ type })).catch(() => {});
-  } catch {
-    /* WebView 밖(브라우저/검수자 PC/jsdom)에서는 throw — 무시 */
-  }
-}
 
 function currentYearMonth(): string {
   const now = new Date();
@@ -92,6 +84,7 @@ function ChipButton({
 
 export default function Records() {
   const navigate = useNavigate();
+  const { haptic } = useHaptic();
   const location = useLocation();
   const state = (location.state as RouteState['/records']) ?? null;
 
@@ -128,12 +121,12 @@ export default function Records() {
   }, [records, workplaceId, yearMonth]);
 
   function handleSelectWorkplace(id: string) {
-    fireHaptic('tickWeak');
+    haptic('tickWeak');
     setWorkplaceOverride(id);
   }
 
   function handleSelectMonth(m: string) {
-    fireHaptic('tickWeak');
+    haptic('tickWeak');
     setMonthOverride(m);
   }
 
@@ -149,13 +142,13 @@ export default function Records() {
   async function handleConfirmDelete() {
     if (!deleteTargetId) return;
     await removeRecord(deleteTargetId);
-    fireHaptic('success');
+    haptic('success');
     setDeleteTargetId(null);
   }
 
   function handleAddRecord() {
     if (!workplaceId) return;
-    fireHaptic('success');
+    haptic('success');
     navigate('/record/new', {
       state: { workplaceId, date: `${yearMonth}-01` } satisfies RouteState['/record/new'],
     });

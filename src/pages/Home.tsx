@@ -1,8 +1,8 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Top, Paragraph, Spacing, ListRow, Button, Badge } from '@toss/tds-mobile';
-import { generateHapticFeedback } from '@apps-in-toss/web-framework';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
+import { MonthNav } from '@/components/MonthNav';
 import { SummaryHero } from '@/components/SummaryHero';
 import { CountUp } from '@/components/CountUp';
 import { Sparkline } from '@/components/Sparkline';
@@ -11,17 +11,10 @@ import { Card } from '@/components/Card';
 import { EmptyState, LoadingState } from '@/components/StateView';
 import { AdSlot } from '@/components/AdSlot';
 import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
+import { useHaptic } from '@/hooks/useHaptic';
 import { parseHHmm, calcWorkedMinutes, calcNightMinutes } from '@/lib/payrollDaily';
 import { formatNumber } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
-
-function fireHaptic(type: 'tickWeak' | 'success') {
-  try {
-    Promise.resolve(generateHapticFeedback({ type })).catch(() => {});
-  } catch {
-    /* WebView 밖(브라우저/검수자 PC/jsdom)에서는 throw — 무시 */
-  }
-}
 
 function todayISODate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -47,20 +40,9 @@ function formatDuration(minutes: number): string {
   return m > 0 ? `${h}시간 ${m}분` : `${h}시간`;
 }
 
-const monthNavButtonStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minWidth: 44,
-  minHeight: 44,
-  border: '1px solid var(--adaptiveGrey200)',
-  borderRadius: 12,
-  backgroundColor: 'transparent',
-  color: 'var(--adaptiveGrey700)',
-};
-
 export default function Home() {
   const navigate = useNavigate();
+  const { haptic } = useHaptic();
   const { loading, workplaces, records, settings, setActiveWorkplace } = useAppData();
   const [monthOffset, setMonthOffset] = useState(0);
 
@@ -75,24 +57,24 @@ export default function Home() {
   const payroll = useMonthlyPayroll(resolvedActiveId, yearMonth);
 
   function handlePrevMonth() {
-    fireHaptic('tickWeak');
+    haptic('tickWeak');
     setMonthOffset((o) => o - 1);
   }
 
   function handleNextMonth() {
     if (isCurrentMonth) return;
-    fireHaptic('tickWeak');
+    haptic('tickWeak');
     setMonthOffset((o) => Math.min(0, o + 1));
   }
 
   function handleSelectWorkplace(id: string) {
-    fireHaptic('tickWeak');
+    haptic('tickWeak');
     void setActiveWorkplace(id);
   }
 
   function handleHeroClick() {
     if (!resolvedActiveId) return;
-    fireHaptic('tickWeak');
+    haptic('tickWeak');
     navigate('/breakdown', {
       state: { workplaceId: resolvedActiveId, yearMonth } satisfies RouteState['/breakdown'],
     });
@@ -100,7 +82,7 @@ export default function Home() {
 
   function handleAddRecord() {
     if (!resolvedActiveId) return;
-    fireHaptic('success');
+    haptic('success');
     navigate('/record/new', {
       state: { workplaceId: resolvedActiveId, date: todayISODate() } satisfies RouteState['/record/new'],
     });
@@ -108,7 +90,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <ScreenScaffold top={<Top title={<Top.TitleParagraph>{monthTitle}</Top.TitleParagraph>} />}>
+      <ScreenScaffold top={<Top title={<Top.TitleParagraph>내 급여</Top.TitleParagraph>} />}>
         <Card>
           <StatSkeletonRow />
         </Card>
@@ -120,7 +102,7 @@ export default function Home() {
 
   if (workplaces.length === 0) {
     return (
-      <ScreenScaffold top={<Top title={<Top.TitleParagraph>{monthTitle}</Top.TitleParagraph>} />}>
+      <ScreenScaffold top={<Top title={<Top.TitleParagraph>내 급여</Top.TitleParagraph>} />}>
         <EmptyState
           title="등록된 근무지가 없어요"
           description="근무지를 추가하면 예상 급여를 계산해드려요"
@@ -158,21 +140,14 @@ export default function Home() {
     .slice(0, 5);
 
   return (
-    <ScreenScaffold top={<Top title={<Top.TitleParagraph>{monthTitle}</Top.TitleParagraph>} />}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button type="button" aria-label="이전 달" onClick={handlePrevMonth} style={monthNavButtonStyle}>
-          ‹
-        </button>
-        <button
-          type="button"
-          aria-label="다음 달"
-          onClick={handleNextMonth}
-          disabled={isCurrentMonth}
-          style={monthNavButtonStyle}
-        >
-          ›
-        </button>
-      </div>
+    <ScreenScaffold top={<Top title={<Top.TitleParagraph>내 급여</Top.TitleParagraph>} />}>
+      <MonthNav
+        label={monthTitle}
+        onPrev={handlePrevMonth}
+        onNext={handleNextMonth}
+        nextDisabled={isCurrentMonth}
+        testId="home-month-nav"
+      />
 
       <Spacing size={12} />
 
