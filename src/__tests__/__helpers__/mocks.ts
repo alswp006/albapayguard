@@ -303,8 +303,16 @@ export function mockTossRewardAd() {
 
 // ── react-router-dom ──
 // Preserve actual router + override useNavigate for assertion.
+//
+// NOTE: uses vi.doMock (not vi.mock) deliberately. vi.mock calls are hoisted by Vitest
+// to the top of whichever file they're *textually* in, regardless of function nesting —
+// so a plain `vi.mock(...)` here would fire the moment any test imports this module
+// (even just `mockTds`), registering a competing "react-router-dom" mock that clashes
+// with any test-local custom router mock (observed 2026-09-12: silently made a page's
+// own `vi.mock("react-router-dom", ...)` + `useNavigate` assertions inert). vi.doMock
+// is intentionally NOT hoisted, so it only takes effect when this function actually runs.
 export function mockRouter() {
-  vi.mock("react-router-dom", async () => {
+  vi.doMock("react-router-dom", async () => {
     const actual = await vi.importActual<typeof import("react-router-dom")>(
       "react-router-dom",
     );
