@@ -262,6 +262,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0014: [부가] 기록 목록 페이지 `/records` (files: src/pages/Records.tsx)
 - 0017: 라우팅 배선 + 전역 Provider (진입점 소유) (files: src/App.tsx)
 - 0018: 광고·햅틱 헬퍼 컴포넌트 + 최종 UX 폴리시 (files: src/components/MonthNav.tsx, src/components/LegalNotice.tsx, src/hooks/useHaptic.ts)
+- 0009: 홈 대시보드 `/` (files: src/components/MonthNav.tsx, src/components/SummaryHero.tsx, src/components/Sparkline.tsx, src/components/MiniBar.tsx, src/components/RecentRecordsCard.tsx, src/components/AddRecordCTA.tsx, src/components/AdSlotBanner.tsx)
 
 ## Available exports from existing files
 // src/App.tsx
@@ -269,6 +270,16 @@ export default function App() {
 
 // src/components/AdSlot.tsx
 export function AdSlot({ adGroupId, className, variant, theme }: AdSlotProps) {
+
+// src/components/AdSlotBanner.tsx
+export interface AdSlotBannerProps {
+export function AdSlotBanner({
+export default AdSlotBanner;
+
+// src/components/AddRecordCTA.tsx
+export interface AddRecordCTAProps {
+export function AddRecordCTA({
+export default AddRecordCTA;
 
 // src/components/Amount.tsx
 export function Amount({
@@ -293,44 +304,43 @@ export interface LegalNoticeProps {
 export function LegalNotice({ testId }: LegalNoticeProps) {
 export default LegalNotice;
 
+// src/components/MiniBar.tsx
+export function MiniBar({
+
+// src/components/MonthNav.tsx
+export interface MonthNavProps {
+export function MonthNav({
+export default MonthNav;
+
 // src/components/PageShell.tsx
 export function PageShell({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+
+// src/components/RecentRecordsCard.tsx
+export const RECENT_RECORDS_LIMIT = 5;
+export function pickRecentRecords(
+export interface RecentRecordsCardProps {
+export function RecentRecordsCard({
+export default RecentRecordsCard;
 
 // src/components/ScreenScaffold.tsx
 export function ScreenScaffold({
 
+// src/components/Sparkline.tsx
+export function Sparkline({
+
 // src/components/StateView.tsx
 export function EmptyState({
 export function LoadingState({
+
+// src/components/SummaryHero.tsx
+export function SummaryHero({
 
 // src/components/TossPurchase.tsx
 export interface TossPurchaseResult {
 export function TossPurchase({
 
 // src/components/TossRewardAd.tsx
-export function TossRewardAd({
-
-// src/hooks/useAppData.ts
-export function useAppData(): AppDataContextValue {
-export function useMonthlyPayroll(
-
-// src/hooks/useHaptic.ts
-export type HapticType = 'success' | 'tickWeak';
-export function useHaptic() {
-export default useHaptic;
-
-// src/lib/analysis.ts
-export interface PayrollForAnalysis {
-export interface PayAnalysisResult {
-export function analyzePay(payroll: PayrollForAnalysis, actualPaidAmount: number): PayAnalysisResult {
-export function analyzeUnpaid(
-export function isUnlocked(
-export async function grantUnlock(workplaceId: string, yearMonth: string): Promise<void> {
-export function formatWon(amount: number): string {
-export function parseWon(value: string): number {
-
-// src/lib/contract.ts
-export type RouteState = { section: 'home' 
+export
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 
