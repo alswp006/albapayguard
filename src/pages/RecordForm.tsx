@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { AlertDialog, Button, ListRow, Paragraph, Spacing, Switch, TextField, Toast, Top } from '@toss/tds-mobile';
+import { AlertDialog, Asset, Button, ListRow, Paragraph, Spacing, Switch, TextField, Toast, Top } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { SubmitFooter } from '@/components/BottomCTA';
 import { Card } from '@/components/Card';
@@ -69,6 +69,9 @@ export default function RecordForm() {
   const [hydrated, setHydrated] = useState(() => Boolean(existing) || !isEdit);
 
   const [error, setError] = useState<string | null>(null);
+  // 제출 중 표시 — 성공 시에는 화면이 떠나므로 풀지 않지만, 검증·중복·저장 실패 경로에서는
+  // 반드시 false로 되돌린다("한 번 누르면 영구 비활성"이 완주를 막는 가장 흔한 버그).
+  const [submitting, setSubmitting] = useState(false);
   const [duplicateToastOpen, setDuplicateToastOpen] = useState(false);
   const [quotaToastOpen, setQuotaToastOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -108,7 +111,10 @@ export default function RecordForm() {
     return (
       <ScreenScaffold top={<Top title={<Top.TitleParagraph>기록 수정</Top.TitleParagraph>} />}>
         <EmptyState
+          icon={<Asset.ContentIcon name="iconStarRegular" alt="기록" />}
           title="기록을 찾을 수 없어요"
+          description="이미 삭제했거나 주소가 잘못됐어요"
+          testId="record-not-found"
           action={
             <Button variant="weak" onClick={() => navigate(ROUTES.records)}>
               돌아가기
@@ -131,6 +137,7 @@ export default function RecordForm() {
   const overnight = crossesMidnight(startTime, endTime);
 
   async function handleSave() {
+    if (submitting) return;
     setError(null);
     const input = {
       workplaceId,
@@ -150,6 +157,8 @@ export default function RecordForm() {
       return;
     }
 
+    setSubmitting(true);
+
     const duplicate = await isDuplicateRecord({
       id: isEdit ? id : undefined,
       workplaceId,
@@ -158,6 +167,7 @@ export default function RecordForm() {
     });
     if (duplicate) {
       setDuplicateToastOpen(true);
+      setSubmitting(false);
       return;
     }
 
@@ -165,10 +175,13 @@ export default function RecordForm() {
       const result = isEdit && id ? await editRecord(id, input) : await addRecord(input);
       if (!result.ok) {
         setQuotaToastOpen(true);
+        setSubmitting(false);
         return;
       }
     } catch {
+      // localStorage 쓰기 실패(QuotaExceededError 등) — 입력값은 그대로 두고 재시도 가능하게 남긴다.
       setQuotaToastOpen(true);
+      setSubmitting(false);
       return;
     }
 
@@ -183,8 +196,18 @@ export default function RecordForm() {
 
   async function handleConfirmDelete() {
     if (!id) return;
-    await removeRecord(id);
     setDeleteDialogOpen(false);
+    try {
+      const result = await removeRecord(id);
+      if (result && result.ok === false) {
+        setQuotaToastOpen(true);
+        return;
+      }
+    } catch {
+      // 삭제도 localStorage 쓰기다 — 실패하면 기록을 남겨둔 채 알리고, 이동하지 않는다.
+      setQuotaToastOpen(true);
+      return;
+    }
     navigate(ROUTES.records, { state: { toast: '삭제했어요' } satisfies RouteState['/records'] });
   }
 
@@ -202,7 +225,7 @@ export default function RecordForm() {
           )}
         </div>
       }
-      bottom={<SubmitFooter label="저장하기" onClick={handleSave} />}
+      bottom={<SubmitFooter label="저장하기" onClick={handleSave} loading={submitting} />}
     >
       <TextField
         variant="line"
@@ -261,22 +284,8 @@ export default function RecordForm() {
         }}
         data-testid="record-break-input"
       />
-      <Spacing size={16} />
-      <ListRow
-        contents={<ListRow.Texts type="1RowTypeA" top="휴일 근무" />}
-        right={<Switch checked={isHoliday} onChange={handleToggleHoliday} />}
-      />
-      <Spacing size={12} />
-      <TextField
-        variant="line"
-        label="메모"
-        placeholder="예: 마감 청소 추가"
-        maxLength={50}
-        enterKeyHint="done"
-        value={memo}
-        onChange={(e) => setMemo(e.target.value)}
-        data-testid="record-memo-input"
-      />
+      {/* 예상 일급은 시각·휴게시간을 고친 직후 바로 눈에 들어와야 한다 — 폼 맨 아래에 두면
+          하단 고정 CTA에 가려 스크롤해야만 보인다. */}
       <Spacing size={16} />
       <Card testId="record-preview">
         {daily ? (
@@ -299,6 +308,22 @@ export default function RecordForm() {
           <Paragraph.Text typography="t6">출근·퇴근 시각을 입력하면 예상 일급을 보여드려요</Paragraph.Text>
         )}
       </Card>
+      <Spacing size={16} />
+      <ListRow
+        contents={<ListRow.Texts type="1RowTypeA" top="휴일 근무" />}
+        right={<Switch checked={isHoliday} onChange={handleToggleHoliday} />}
+      />
+      <Spacing size={12} />
+      <TextField
+        variant="line"
+        label="메모"
+        placeholder="예: 마감 청소 추가"
+        maxLength={50}
+        enterKeyHint="done"
+        value={memo}
+        onChange={(e) => setMemo(e.target.value)}
+        data-testid="record-memo-input"
+      />
       {/* FixedBottomCTA는 position:fixed라 ScreenScaffold 본문이 그만큼 하단 패딩을 갖지 않는다 —
           여백 없인 마지막 줄이 버튼 뒤에 가려진다. */}
       <Spacing size={96} />
