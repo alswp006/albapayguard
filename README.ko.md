@@ -13,19 +13,19 @@
 ## 라우트
 
 | 경로 | 설명 |
-|------|-----|
-| `/Breakdown` | Breakdown |
-| `/Check` | Check |
-| `/CheckResult` | CheckResult |
-| `/CheckResultAd` | CheckResultAd |
-| `/CheckResultCore` | CheckResultCore |
-| `/Home` | Home |
-| `/NotFound` | NotFound |
-| `/Onboarding` | Onboarding |
-| `/RecordForm` | RecordForm |
-| `/Records` | Records |
-| `/Workplace` | Workplace |
-| `/WorkplaceForm` | WorkplaceForm |
+|------|----------|
+| `/Breakdown` | 급여 내역 |
+| `/Check` | 미지급 여부 확인 |
+| `/CheckResult` | 확인 결과 |
+| `/CheckResultAd` | 확인 결과 (광고) |
+| `/CheckResultCore` | 확인 결과 (핵심) |
+| `/Home` | 홈 |
+| `/NotFound` | 찾을 수 없음 |
+| `/Onboarding` | 온보딩 |
+| `/RecordForm` | 근무 기록 입력 |
+| `/Records` | 근무 기록 목록 |
+| `/Workplace` | 근무지 |
+| `/WorkplaceForm` | 근무지 입력 |
 
 ## 시작하기
 
