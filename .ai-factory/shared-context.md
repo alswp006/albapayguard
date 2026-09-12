@@ -208,6 +208,7 @@ export interface MonthlyPayroll {
     storage.ts
     types.ts
     utils.ts
+    workplaceColors.ts
     workplaceIntegrity.ts
   main.tsx
   pages/
@@ -243,7 +244,8 @@ export interface MonthlyPayroll {
 - storage.ts: export function getItem<T>(key: string): T | null; export function setItem<T>(key: string, value: T): void; export function removeItem(key: string): void; export interface WriteRawResult; export function consumeCorruptionFlag(): boolean; export function writeRaw(key: string, value: unknown): WriteRawResult; export function readRaw<T>( key: string, fallback: T, isValid: (data: unknown) => data is T ): T; export function isWorkplaceArray(data: unknown): data is Workplace[]
 - types.ts: export type TaxType = 'none' | 'freelance3_3'; export interface Workplace; export interface WorkRecord; export type SuspectKind = 'weeklyHoliday' | 'night' | 'overtime' | 'holiday' | 'minimumWage'; export interface PaySuspect; export interface PayCheck; export interface PayAnalysis; export interface AppSettings
 - utils.ts: export function cn(...classes: (string | boolean | undefined | null)[]): string; export function formatNumber(n: number): string; export function formatCurrency(n: number, currency = 'KRW'): string
-- workplaceIntegrity.ts: export type DeleteWorkplaceCascadeResult = |; export async function resolveActiveWorkplaceId(): Promise<string | null>; export async function countLinked(workplaceId: string): Promise<number>; export async function canAddWorkplace(): Promise<bool...
+- workplaceColors.ts: export const WORKPLACE_COLOR_LABELS: Record<string, string> =; export const WORKPLACE_COLOR_VARS: Record<string, string> =; export function colorVar(token: string): string; export function colorLabel(token: string): string
+- w...
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
@@ -269,6 +271,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - heal-1-02: 기록 입력 페이지 `/record/new` 구현 (files: src/pages/RecordNew.tsx)
 - heal-1-03: 기록 수정 페이지 `/record/:id/edit` 구현 (files: src/pages/RecordEdit.tsx)
 - heal-2-01: 라우트 단일 출처(ROUTES) 도입 + App.tsx 전체 경로 배선(동적 파라미터 포함) + 누락 페이지 플레이스홀더 (files: src/routes.ts, src/App.tsx, src/pages/RecordEditPage.tsx, src/pages/WorkplaceListPage.tsx, src/pages/WorkplaceFormPage.tsx, src/pages/NotFoundPage.tsx)
+- heal-2-03: 근무지 화면 `/workplace`, `/workplace/new`, `/workplace/:id/edit` 실구현 + 경로-라우트 정합성 가드 (files: src/pages/WorkplaceListPage.tsx, src/pages/WorkplaceFormPage.tsx, src/routes.ts, scripts/check-routes.mjs, package.json)
 
 ## Available exports from existing files
 // src/App.tsx

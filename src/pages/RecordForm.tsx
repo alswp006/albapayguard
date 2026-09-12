@@ -29,6 +29,10 @@ import { formatNumber } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
 import { ROUTES } from '@/routes';
 
+// S2 스펙이 명시한 시각 프리셋 — 대부분의 알바 근무는 이 네 시각 중 하나에서 시작/끝난다.
+// 자유입력 TextField만 있으면 매번 4자리를 직접 타이핑해야 해 완주율이 떨어진다.
+const TIME_PRESETS = ['09:00', '13:00', '18:00', '22:00'] as const;
+
 function todayISODate(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -235,6 +239,24 @@ export default function RecordForm() {
     setIsHoliday((prev) => !prev);
   }
 
+  function handlePickStartPreset(time: string) {
+    haptic('tickWeak');
+    setStartTime(time);
+  }
+
+  function handlePickEndPreset(time: string) {
+    haptic('tickWeak');
+    setEndTime(time);
+  }
+
+  // 마지막 필드에서 모바일 키보드 "완료"를 누르면 포커스를 해제한다(AC-8) — Enter 키다운이
+  // 그 신호다. onSubmit이 있는 <form>이 아니라서 키보드 제출과 별개로 직접 처리한다.
+  function handleMemoKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    event.currentTarget.blur();
+  }
+
   async function handleConfirmDelete() {
     if (!id) return;
     setDeleteDialogOpen(false);
@@ -335,6 +357,19 @@ export default function RecordForm() {
         onChange={(e) => setStartTime(e.target.value)}
         data-testid="record-start-input"
       />
+      <Spacing size={8} />
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }} data-testid="record-start-presets">
+        {TIME_PRESETS.map((time) => (
+          <ChipButton
+            key={time}
+            testId={`record-start-preset-${time}`}
+            selected={startTime === time}
+            onClick={() => handlePickStartPreset(time)}
+          >
+            {time}
+          </ChipButton>
+        ))}
+      </div>
       <Spacing size={12} />
       <TextField
         ref={endRef}
@@ -348,6 +383,19 @@ export default function RecordForm() {
         onChange={(e) => setEndTime(e.target.value)}
         data-testid="record-end-input"
       />
+      <Spacing size={8} />
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }} data-testid="record-end-presets">
+        {TIME_PRESETS.map((time) => (
+          <ChipButton
+            key={time}
+            testId={`record-end-preset-${time}`}
+            selected={endTime === time}
+            onClick={() => handlePickEndPreset(time)}
+          >
+            {time}
+          </ChipButton>
+        ))}
+      </div>
       {error && (
         <>
           <Spacing size={4} />
@@ -409,6 +457,7 @@ export default function RecordForm() {
         enterKeyHint="done"
         value={memo}
         onChange={(e) => setMemo(e.target.value)}
+        onKeyDown={handleMemoKeyDown}
         data-testid="record-memo-input"
       />
       {/* FixedBottomCTA는 position:fixed라 ScreenScaffold 본문이 그만큼 하단 패딩을 갖지 않는다 —
