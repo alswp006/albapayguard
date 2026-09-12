@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "prebuild": "node scripts/check-routes.mjs src",
     "build": "vite build",
     "postbuild": "node scripts/verify-no-dev-leak.mjs dist",
     "preview": "vite preview",

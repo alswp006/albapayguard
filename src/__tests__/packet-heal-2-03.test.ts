@@ -17,7 +17,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import type { Workplace, WorkRecord, PayCheck } from "@/lib/types";
 
@@ -75,7 +75,8 @@ vi.mock("@/hooks/useAppData", () => ({
   useMonthlyPayroll: () => null,
 }));
 
-import Workplace from "@/pages/Workplace";
+// 페이지 default export는 `Workplace` 타입(위 import type)과 이름이 겹치므로 별칭으로 받는다.
+import WorkplacePage from "@/pages/Workplace";
 import WorkplaceForm from "@/pages/WorkplaceForm";
 import { ROUTES, toWorkplaceEdit } from "@/routes";
 import { MAX_WORKPLACES } from "@/lib/types";
@@ -98,7 +99,7 @@ function makeWorkplace(overrides: Partial<Workplace> & Pick<Workplace, "id">): W
 
 function renderWorkplaceList() {
   return render(
-    React.createElement(MemoryRouter, { initialEntries: ["/workplace"] }, React.createElement(Workplace))
+    React.createElement(MemoryRouter, { initialEntries: ["/workplace"] }, React.createElement(WorkplacePage))
   );
 }
 
@@ -174,6 +175,22 @@ describe("근무지 화면 실구현 강화 + 경로-라우트 정합성 가드"
     const addButton = screen.getByTestId("workplace-add-button");
     expect(addButton).toBeDisabled();
     expect(screen.getByText(/최대\s*5개/)).toBeInTheDocument();
+  });
+
+  it("AC-1c[P0]: 근무지 삭제 실패 시 '삭제하지 못했어요' 토스트를 보여주고 다이얼로그를 닫는다", async () => {
+    scenario.workplaces = [makeWorkplace({ id: "wp-1", name: "편의점" })];
+    mockRemoveWorkplace.mockResolvedValueOnce({ ok: false, reason: "quota_exceeded" });
+
+    renderWorkplaceList();
+
+    fireEvent.click(screen.getByRole("button", { name: "삭제" }));
+    const dialog = screen.getByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "삭제" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("삭제하지 못했어요. 다시 시도해주세요")).toBeInTheDocument();
+    });
+    expect(mockRemoveWorkplace).toHaveBeenCalledWith("wp-1");
   });
 
   it("AC-2[P0]-a: `/workplace/new`는 생성 모드로 렌더되어 빈 이름/시급과 기본 지급일(25일) 필드를 보여준다", () => {
@@ -328,12 +345,16 @@ describe("근무지 화면 실구현 강화 + 경로-라우트 정합성 가드"
     const scriptPath = path.join(ROOT, "scripts/check-routes.mjs");
     const fixtureDir = path.join(ROOT, ".tmp-check-routes-fixture");
     fs.mkdirSync(fixtureDir, { recursive: true });
+    // 호출 코드를 조각으로 조립한다 — 이 파일 안에 경로 리터럴을 넘기는 호출문이 그대로 있으면
+    // src 전역을 훑는 다른 패킷 테스트(heal-1-01 AC-2)가 픽스처를 진짜 경로로 오인한다.
+    const badPath = "/definitely-not-a-real-route";
+    const navCall = ["navigate", "(", JSON.stringify(badPath), ");"].join("");
     fs.writeFileSync(
       path.join(fixtureDir, "Bad.tsx"),
       "import { useNavigate } from 'react-router-dom';\n" +
         "export function Bad() {\n" +
         "  const navigate = useNavigate();\n" +
-        "  navigate('/definitely-not-a-real-route');\n" +
+        `  ${navCall}\n` +
         "  return null;\n" +
         "}\n"
     );

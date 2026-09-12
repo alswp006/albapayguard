@@ -12,6 +12,9 @@ export const ROUTES = {
   checkResult: '/check/result',
   workplace: '/workplace',
   workplaceNew: '/workplace/new',
+  // `/workplace/:id`는 `/workplace/:id/edit`의 별칭(App.tsx) — 외부에서 들어온 짧은 링크가
+  // 404로 떨어지지 않게 둔다. 앱 안에서 이동할 때는 toWorkplaceEdit(id)를 쓴다.
+  workplaceDetail: '/workplace/:id',
   workplaceEdit: '/workplace/:id/edit',
   notFound: '*',
 } as const;

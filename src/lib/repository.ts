@@ -289,14 +289,70 @@ export async function runMigration(): Promise<void> {
 // 검증
 // ---------------------------------------------------------------------------
 
-export function validateWorkplace(input: { name: string; hourlyWage: number }): string | null {
-  if (!input.name || input.name.trim() === '') {
-    return '근무지 이름을 입력해주세요';
+export const WORKPLACE_NAME_MAX_LENGTH = 20;
+export const WORKPLACE_WAGE_MAX = 1_000_000;
+
+export interface WorkplaceValidationInput {
+  name: string;
+  hourlyWage: number;
+  /** 미지정이면 검증을 건너뛴다 — 부분 입력(이름·시급만 채운 상태)도 그대로 통과시키기 위해. */
+  payday?: number;
+  taxType?: string;
+  colorToken?: string;
+}
+
+export interface WorkplaceFieldErrors {
+  name?: string;
+  hourlyWage?: string;
+  payday?: string;
+  taxType?: string;
+  colorToken?: string;
+}
+
+/**
+ * 필드별 에러 맵 — 폼이 각 입력칸 옆에 인라인으로 붙이기 위한 형태.
+ * 한 줄 메시지만 필요하면 validateWorkplace를 쓴다(둘은 같은 규칙을 공유한다).
+ */
+export function validateWorkplaceFields(input: WorkplaceValidationInput): WorkplaceFieldErrors {
+  const errors: WorkplaceFieldErrors = {};
+
+  const name = input.name?.trim() ?? '';
+  if (name === '') {
+    errors.name = '근무지 이름을 입력해주세요';
+  } else if (name.length > WORKPLACE_NAME_MAX_LENGTH) {
+    errors.name = `근무지 이름은 ${WORKPLACE_NAME_MAX_LENGTH}자까지 넣을 수 있어요`;
   }
-  if (!input.hourlyWage || input.hourlyWage <= 0) {
-    return '시급을 1원 이상 입력해주세요';
+
+  const wage = input.hourlyWage;
+  if (!wage || wage <= 0) {
+    errors.hourlyWage = '시급을 1원 이상 입력해주세요';
+  } else if (!Number.isInteger(wage)) {
+    errors.hourlyWage = '시급은 1원 단위로 입력해 주세요';
+  } else if (wage > WORKPLACE_WAGE_MAX) {
+    errors.hourlyWage = '시급은 1,000,000원까지 입력할 수 있어요';
   }
-  return null;
+
+  if (input.payday !== undefined) {
+    const { payday } = input;
+    if (!Number.isInteger(payday) || payday < 1 || payday > 31) {
+      errors.payday = '급여일을 1~31 사이로 입력해 주세요';
+    }
+  }
+
+  if (input.taxType !== undefined && input.taxType !== 'none' && input.taxType !== 'freelance3_3') {
+    errors.taxType = '세금은 공제 없음 또는 3.3% 중에서 골라주세요';
+  }
+
+  if (input.colorToken !== undefined && !COLOR_TOKENS.includes(input.colorToken)) {
+    errors.colorToken = '색상은 블루·그린·퍼플·오렌지 중에서 골라주세요';
+  }
+
+  return errors;
+}
+
+export function validateWorkplace(input: WorkplaceValidationInput): string | null {
+  const errors = validateWorkplaceFields(input);
+  return errors.name ?? errors.hourlyWage ?? errors.payday ?? errors.taxType ?? errors.colorToken ?? null;
 }
 
 const TIME_FORMAT = /^([01]\d|2[0-3]):([0-5]\d)$/;
