@@ -9,6 +9,7 @@ import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
 import { formatNumber } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
+import { ROUTES } from '@/routes';
 
 const MAX_AMOUNT = 100_000_000;
 const AMOUNT_ERROR = '0원 이상 1억원 이하로 입력해주세요';
@@ -128,14 +129,14 @@ export default function Check() {
 
   function handleAddRecord() {
     haptic('tickWeak');
-    navigate('/record/new', {
+    navigate(ROUTES.recordNew, {
       state: { workplaceId: workplaceId ?? '', date: `${yearMonth}-01` } satisfies RouteState['/record/new'],
     });
   }
 
   function handleAddWorkplace() {
     haptic('tickWeak');
-    navigate('/workplace');
+    navigate(ROUTES.workplace);
   }
 
   function handleAnalyze() {
@@ -149,7 +150,7 @@ export default function Check() {
     }
     setAmountError(false);
     if (!workplaceId) return;
-    navigate('/check/result', {
+    navigate(ROUTES.checkResult, {
       state: { workplaceId, yearMonth, actualPaidAmount: amount } satisfies RouteState['/check/result'],
     });
   }

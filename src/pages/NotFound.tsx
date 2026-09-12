@@ -3,6 +3,7 @@ import { Top, Asset } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { SubmitFooter } from '@/components/BottomCTA';
 import { EmptyState } from '@/components/StateView';
+import { ROUTES } from '@/routes';
 
 // SPEC S8 AC-8: /unknown-path, /record/:id/edit(존재하지 않는 recordId) 등
 // 정의되지 않은 모든 경로가 이 화면으로 떨어진다. 화이트 스크린 대신
@@ -11,7 +12,7 @@ export default function NotFound() {
   const navigate = useNavigate();
 
   function handleGoHome() {
-    navigate('/', { replace: true });
+    navigate(ROUTES.home, { replace: true });
   }
 
   return (

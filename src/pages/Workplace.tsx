@@ -7,6 +7,7 @@ import { Amount } from '@/components/Amount';
 import { useAppData } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
 import { MAX_WORKPLACES, type RouteState } from '@/lib/types';
+import { ROUTES, toWorkplaceEdit } from '@/routes';
 
 export default function Workplace() {
   const navigate = useNavigate();
@@ -34,12 +35,12 @@ export default function Workplace() {
   function handleAdd() {
     if (atLimit) return;
     haptic('tickWeak');
-    navigate('/workplace/new');
+    navigate(ROUTES.workplaceNew);
   }
 
   function handleRowClick(id: string) {
     haptic('tickWeak');
-    navigate(`/workplace/${id}`);
+    navigate(toWorkplaceEdit(id));
   }
 
   const deleteTarget = workplaces.find((w) => w.id === deleteTargetId);

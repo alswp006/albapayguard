@@ -7,6 +7,7 @@ import { LoadingState } from '@/components/StateView';
 import { useAppData } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
 import { COLOR_TOKENS, type RouteState } from '@/lib/types';
+import { ROUTES } from '@/routes';
 
 const COLOR_LABELS: Record<string, string> = {
   blue: '블루',
@@ -82,10 +83,10 @@ export default function WorkplaceForm() {
     if (!result.ok) return;
 
     if (fromOnboarding) {
-      navigate('/', { replace: true });
+      navigate(ROUTES.home, { replace: true });
       return;
     }
-    navigate('/workplace', {
+    navigate(ROUTES.workplace, {
       replace: true,
       state: { toast: '근무지가 저장되었어요' } satisfies RouteState['/workplace'],
     });

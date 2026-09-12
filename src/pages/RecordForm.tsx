@@ -11,6 +11,7 @@ import { isDuplicateRecord, validateRecord } from '@/lib/repository';
 import { calcDaily, parseHHmm } from '@/lib/payrollDaily';
 import { formatNumber } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
+import { ROUTES } from '@/routes';
 
 function todayISODate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -109,7 +110,7 @@ export default function RecordForm() {
         <EmptyState
           title="기록을 찾을 수 없어요"
           action={
-            <Button variant="weak" onClick={() => navigate('/records')}>
+            <Button variant="weak" onClick={() => navigate(ROUTES.records)}>
               돌아가기
             </Button>
           }
@@ -172,7 +173,7 @@ export default function RecordForm() {
     }
 
     haptic('success');
-    navigate('/records', { state: { toast: '저장했어요' } satisfies RouteState['/records'] });
+    navigate(ROUTES.records, { state: { toast: '저장했어요' } satisfies RouteState['/records'] });
   }
 
   function handleToggleHoliday() {
@@ -184,7 +185,7 @@ export default function RecordForm() {
     if (!id) return;
     await removeRecord(id);
     setDeleteDialogOpen(false);
-    navigate('/records', { state: { toast: '삭제했어요' } satisfies RouteState['/records'] });
+    navigate(ROUTES.records, { state: { toast: '삭제했어요' } satisfies RouteState['/records'] });
   }
 
   return (

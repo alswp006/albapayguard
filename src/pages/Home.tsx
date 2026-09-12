@@ -15,6 +15,7 @@ import { AdSlotBanner } from '@/components/AdSlotBanner';
 import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
 import type { MonthlyPayroll, RouteState } from '@/lib/types';
+import { ROUTES, toRecordEdit } from '@/routes';
 
 function todayISODate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -88,7 +89,7 @@ export default function Home() {
   function handleHeroClick() {
     if (!activeWorkplaceId) return;
     haptic('tickWeak');
-    navigate('/breakdown', {
+    navigate(ROUTES.breakdown, {
       state: { workplaceId: activeWorkplaceId, yearMonth } satisfies RouteState['/breakdown'],
     });
   }
@@ -96,7 +97,7 @@ export default function Home() {
   function handleAddRecord() {
     if (!activeWorkplaceId) return;
     haptic('success');
-    navigate('/record/new', {
+    navigate(ROUTES.recordNew, {
       state: {
         workplaceId: activeWorkplaceId,
         date: todayISODate(),
@@ -106,7 +107,7 @@ export default function Home() {
 
   function handleEditRecord(recordId: string) {
     haptic('tickWeak');
-    navigate(`/record/${recordId}/edit`);
+    navigate(toRecordEdit(recordId));
   }
 
   const homeTop = <Top title={<Top.TitleParagraph>내 급여</Top.TitleParagraph>} />;
@@ -133,7 +134,7 @@ export default function Home() {
           title="등록된 근무지가 없어요"
           description="근무지를 등록하면 시급과 근무시간으로 급여를 계산해요"
           action={
-            <Button variant="fill" display="block" onClick={() => navigate('/workplace')}>
+            <Button variant="fill" display="block" onClick={() => navigate(ROUTES.workplace)}>
               근무지 추가하기
             </Button>
           }

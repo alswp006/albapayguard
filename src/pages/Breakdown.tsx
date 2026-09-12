@@ -12,6 +12,7 @@ import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
 import { formatNumber } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
+import { ROUTES } from '@/routes';
 
 /** payrollMonthly.ts의 주휴수당 지급 기준(15h)과 동일 — 미충족 주의 "N시간 더 일하면" 안내에 사용 */
 const WEEKLY_HOLIDAY_ELIGIBLE_MINUTES = 15 * 60;
@@ -63,20 +64,20 @@ export default function Breakdown() {
 
   function handleAddRecord() {
     haptic('success');
-    navigate('/record/new', {
+    navigate(ROUTES.recordNew, {
       state: { workplaceId: workplaceId ?? '', date: `${yearMonth}-01` } satisfies RouteState['/record/new'],
     });
   }
 
   function handleAddWorkplace() {
     haptic('tickWeak');
-    navigate('/workplace');
+    navigate(ROUTES.workplace);
   }
 
   function handleAnalyze() {
     if (!workplaceId) return;
     haptic('success');
-    navigate('/check', { state: { workplaceId, yearMonth } satisfies RouteState['/check'] });
+    navigate(ROUTES.check, { state: { workplaceId, yearMonth } satisfies RouteState['/check'] });
   }
 
   if (loading) {
@@ -223,9 +224,11 @@ export default function Breakdown() {
           <Card testId="weekly-holiday-card">
             {payroll.weeks.map((week) => {
               const remainingHours = Math.ceil((WEEKLY_HOLIDAY_ELIGIBLE_MINUTES - week.weeklyMinutes) / 60);
+              // 주 근로시간을 먼저 보여준다 — 주휴 판정의 근거가 되는 숫자라 판정만 보면 이유를 알 수 없다.
+              const weeklyHours = Math.round(week.weeklyMinutes / 6) / 10;
               const bottom = week.eligible
-                ? `${formatNumber(week.amount)}원`
-                : `${remainingHours}시간 더 일하면 주휴수당 받을 수 있어요`;
+                ? `주 ${weeklyHours}시간 · ${formatNumber(week.amount)}원`
+                : `주 ${weeklyHours}시간 · ${remainingHours}시간 더 일하면 주휴수당 받아요`;
               return (
                 <div key={week.weekStart} data-testid={`breakdown-week-${week.weekStart}`}>
                   <ListRow
@@ -238,7 +241,7 @@ export default function Breakdown() {
                     }
                     right={
                       <Badge size="small" variant="weak" color={week.eligible ? 'blue' : 'elephant'}>
-                        {week.eligible ? '충족' : '미충족'}
+                        {week.eligible ? '주휴 지급' : '주휴 미지급'}
                       </Badge>
                     }
                   />

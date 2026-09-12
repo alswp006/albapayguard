@@ -116,6 +116,8 @@ describe("라우팅 공백 복구 — App.tsx 전체 Route 배선", () => {
       "/workplace",
       "/workplace/new",
       "/workplace/:id",
+      // 근무지 수정은 ROUTES.workplaceEdit(`/workplace/:id/edit`)가 정식 경로다 — App.tsx에 선언돼 있다.
+      "/workplace/:id/edit",
       "*",
     ]);
 

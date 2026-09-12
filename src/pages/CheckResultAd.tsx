@@ -11,6 +11,7 @@ import { useHaptic } from '@/hooks/useHaptic';
 import { analyzePay, isUnlocked } from '@/lib/analysis';
 import { CheckResultCore } from '@/pages/CheckResultCore';
 import type { RouteState } from '@/lib/types';
+import { ROUTES } from '@/routes';
 
 const UNLOCK_DURATION_MS = 24 * 60 * 60 * 1000;
 
@@ -30,7 +31,7 @@ export default function CheckResultAd() {
 
   useEffect(() => {
     if (!state) {
-      navigate('/check', { replace: true });
+      navigate(ROUTES.check, { replace: true });
     }
   }, [state, navigate]);
 
@@ -81,7 +82,7 @@ function CheckResultAdContent({
         <Card testId="check-result-error-card">
           <Paragraph.Text typography="st6">분석 결과를 불러오지 못했어요</Paragraph.Text>
           <Spacing size={12} />
-          <Button variant="weak" display="block" onClick={() => navigate('/check')}>
+          <Button variant="weak" display="block" onClick={() => navigate(ROUTES.check)}>
             다시 시도
           </Button>
         </Card>
@@ -111,7 +112,7 @@ function CheckResultAdContent({
   }
 
   function handleViewRecords() {
-    navigate('/records', { state: { workplaceId, yearMonth } satisfies RouteState['/records'] });
+    navigate(ROUTES.records, { state: { workplaceId, yearMonth } satisfies RouteState['/records'] });
   }
 
   // F6 AC-6: "분석 결과 저장" 탭 시에만 PayCheck를 upsert하고, 성공하면 Toast와 함께
@@ -131,7 +132,7 @@ function CheckResultAdContent({
       return;
     }
     haptic('success');
-    navigate('/check', {
+    navigate(ROUTES.check, {
       replace: true,
       state: { workplaceId, yearMonth, toast: '분석 결과를 저장했어요' } satisfies RouteState['/check'],
     });

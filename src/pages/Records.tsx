@@ -10,6 +10,7 @@ import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
 import { calcDaily } from '@/lib/payrollDaily';
 import type { RouteState } from '@/lib/types';
+import { ROUTES, toRecordEdit } from '@/routes';
 
 const PAGE_SIZE = 20;
 const RECENT_MONTHS = 6;
@@ -137,7 +138,7 @@ export default function Records() {
   }
 
   function handleRowClick(id: string) {
-    navigate(`/record/${id}/edit`);
+    navigate(toRecordEdit(id));
   }
 
   function handleDeleteClick(e: MouseEvent<HTMLButtonElement>, id: string) {
@@ -155,7 +156,7 @@ export default function Records() {
   function handleAddRecord() {
     if (!workplaceId) return;
     haptic('success');
-    navigate('/record/new', {
+    navigate(ROUTES.recordNew, {
       state: { workplaceId, date: `${yearMonth}-01` } satisfies RouteState['/record/new'],
     });
   }
@@ -180,7 +181,7 @@ export default function Records() {
           title="등록된 근무지가 없어요"
           description="근무지를 추가하면 기록을 남길 수 있어요"
           action={
-            <Button variant="weak" display="block" onClick={() => navigate('/workplace')}>
+            <Button variant="weak" display="block" onClick={() => navigate(ROUTES.workplace)}>
               근무지 추가하기
             </Button>
           }

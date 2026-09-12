@@ -4,12 +4,13 @@ import { Top } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { SubmitFooter } from '@/components/BottomCTA';
 import { EmptyState } from '@/components/StateView';
+import { ROUTES } from '@/routes';
 
 function ErrorFallback({ onRecover }: { onRecover: () => void }) {
   const navigate = useNavigate();
 
   function handleGoHome() {
-    navigate('/', { replace: true });
+    navigate(ROUTES.home, { replace: true });
     onRecover();
   }
 

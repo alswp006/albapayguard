@@ -3,7 +3,7 @@
  *
  * App.tsx는 이미 모든 Route가 배선되어 있다(@ai-factory:wiring-first) — 이 패킷은 App.tsx를
  * 새로 배선하는 것이 아니라, src/routes.ts라는 단일 출처를 만들고 코드베이스 전역의
- * navigate('/하드코딩') 리터럴을 그 상수/빌더로 치환하는 것이 목표다. App.tsx 자체는 건드리지
+ * 하드코딩된 경로 리터럴을 그 상수/빌더로 치환하는 것이 목표다. App.tsx 자체는 건드리지
  *않으므로(수정 금지 규칙), App.tsx의 리터럴 Route path는 정적 문자열 검사로만 확인한다.
  */
 

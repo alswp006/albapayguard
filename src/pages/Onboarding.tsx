@@ -4,6 +4,7 @@ import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { SubmitFooter } from '@/components/BottomCTA';
 import { useAppData } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
+import { ROUTES } from '@/routes';
 
 interface Step {
   title: string;
@@ -25,7 +26,7 @@ export default function Onboarding() {
   function handleStart() {
     haptic('success');
     void patchSettings({ onboardingSeenAt: new Date().toISOString() });
-    navigate('/workplace/new', { replace: true });
+    navigate(ROUTES.workplaceNew, { replace: true });
   }
 
   return (
