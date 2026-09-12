@@ -109,7 +109,7 @@ export default function RecordForm() {
         <EmptyState
           title="기록을 찾을 수 없어요"
           action={
-            <Button variant="weak" onClick={() => navigate(-1)}>
+            <Button variant="weak" onClick={() => navigate('/records')}>
               돌아가기
             </Button>
           }
@@ -171,11 +171,7 @@ export default function RecordForm() {
       return;
     }
 
-    if (isEdit) {
-      navigate(-1);
-    } else {
-      navigate('/records', { state: { toast: '저장했어요' } satisfies RouteState['/records'] });
-    }
+    navigate('/records', { state: { toast: '저장했어요' } satisfies RouteState['/records'] });
   }
 
   function handleToggleHoliday() {
@@ -187,7 +183,7 @@ export default function RecordForm() {
     if (!id) return;
     await removeRecord(id);
     setDeleteDialogOpen(false);
-    navigate(-1);
+    navigate('/records', { state: { toast: '삭제했어요' } satisfies RouteState['/records'] });
   }
 
   return (

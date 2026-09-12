@@ -19,6 +19,10 @@ const ROUTES: { path: string; name: string }[] = [
   { path: "/records", name: "records" },
   { path: "/workplace", name: "workplace" },
   { path: "/workplace/new", name: "workplace-new" },
+  // 편집 라우트 — seed()가 넣는 id(wp-1 / r-1)로 실제 값이 채워진 폼을 본다.
+  { path: "/workplace/wp-1", name: "workplace-edit" },
+  { path: "/workplace/wp-1/edit", name: "workplace-edit-alias" },
+  { path: "/record/r-1/edit", name: "record-edit" },
   { path: "/no-such-route", name: "not-found" },
 ];
 

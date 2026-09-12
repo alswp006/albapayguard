@@ -102,6 +102,8 @@ function AppRoutes() {
             <Route path="/workplace" element={<Workplace />} />
             <Route path="/workplace/new" element={<WorkplaceForm />} />
             <Route path="/workplace/:id" element={<WorkplaceForm />} />
+            {/* `/workplace/:id`의 별칭 — 외부에서 들어온 편집 링크가 404로 떨어지지 않게. */}
+            <Route path="/workplace/:id/edit" element={<WorkplaceForm />} />
             <Route path="*" element={<NotFound />} />
             {DevTdsGallery && (
               <Route

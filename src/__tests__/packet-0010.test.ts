@@ -225,7 +225,7 @@ describe("기록 입력/수정 페이지 `/record/new`, `/record/:id/edit`", () 
     expect(screen.getByTestId("record-preview-worked").textContent).toMatch(/8시간/);
   });
 
-  it("AC-5: 삭제 버튼 → AlertDialog(닫기 버튼 포함) → 확인 시 삭제 후 navigate(-1)로 돌아간다", async () => {
+  it("AC-5: 삭제 버튼 → AlertDialog(닫기 버튼 포함) → 확인 시 삭제 후 /records로 이동한다", async () => {
     scenario.records = [EXISTING];
     localStorage.setItem(STORAGE_KEYS.RECORDS, JSON.stringify([EXISTING]));
 
@@ -239,7 +239,7 @@ describe("기록 입력/수정 페이지 `/record/new`, `/record/:id/edit`", () 
     fireEvent.click(within(dialog).getByRole("button", { name: "삭제하기" }));
 
     await waitFor(() => expect(removeRecordSpy).toHaveBeenCalledWith("r-1"));
-    expect(mockNavigate).toHaveBeenCalledWith(-1);
+    expect(mockNavigate).toHaveBeenCalledWith("/records", { state: { toast: "삭제했어요" } });
   });
 
   it("AC-6: 저장 버튼 안에 <button> 중첩이 없고(button>button 무효 HTML 금지) HEX 색상이 없다", () => {
