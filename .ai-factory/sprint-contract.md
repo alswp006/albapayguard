@@ -1,26 +1,32 @@
-# Sprint Contract — 광고·햅틱 헬퍼 + 최종 UX 폴리시
+# Sprint Contract: 라우팅 공백 복구 — 미구현 페이지 플레이스홀더 배선
 
 ## 목표
-하단 탭 네비게이션, 법정 고지, 햅틱 래퍼를 통합하여 결과·데이터 화면의 UX를 완성.
+App.tsx의 누락된 Route를 모두 채워 단독으로 `tsc --noEmit`·`npm run build`가 통과하게 한다.
 
 ## 만들 항목
 | 파일 | 변경 내용 |
 |------|---------|
-| `src/components/MonthNav.tsx` | 월 네비게이션: ‹/› 각 44×44px, `monthKey`·`onPrev`·`onNext`·`nextDisabled` props |
-| `src/components/LegalNotice.tsx` | 법정 고지 텍스트 컴포넌트: '법정 기준 자동 계산 결과이며 법적 효력이 없습니다' |
-| `src/hooks/useHaptic.ts` | SDK `generateHapticFeedback` 래퍼: `success` / `tickWeak` type, try/catch 가드 |
-| 결과·데이터 화면 | MonthNav·LegalNotice·useHaptic 재사용 통합 |
+| `src/pages/RecordNew.tsx` | ScreenScaffold + PageShell + Top + Paragraph.Text 플레이스홀더 (기존 파일 확인 후 없을 때만 생성) |
+| `src/pages/RecordEdit.tsx` | 동일 |
+| `src/pages/Workplace.tsx` | 동일 |
+| `src/pages/WorkplaceForm.tsx` | 동일 |
+| `src/pages/Onboarding.tsx` | 동일 |
+| `src/pages/NotFound.tsx` | 동일 |
+| `src/App.tsx` | `/record/new`, `/record/:id/edit`, `/workplace`, `/workplace/new`, `/workplace/:id/edit`, `/onboarding`, `path="*"` Route 추가 |
 
 ## 타입 (src/lib/types.ts import)
-기존 타입만 사용: `WorkRecord`, `PayCheck`, `PaySuspect` 등. 신규 타입 정의 불필요.
+플레이스홀더는 타입을 사용하지 않음 — 최소 UI만 렌더.
 
 ## 검증 방법
-1. `npx tsc --noEmit` — 타입 체크 통과
-2. `npx vitest run` — 유닛 테스트 통과 (존재 시)
-3. `npm run test:visual` — 비주얼 스모크 통과, e2e/__shots__ 확인 (입력칸/탭/CTA 렌더)
-4. 수동 확인: 월 네비 ‹/› 44×44 터치 타깃, LegalNotice 텍스트 렌더, 햅틱 try/catch 가드 존재
+1. `npx tsc --noEmit` — 0 errors
+2. `npm run build` — 성공 (문법만 확인)
+3. `console.error` → 0개
+4. 기존 Route(/, /breakdown, /check, /check/result, /records) 변경 없음
+5. FloatingTabBar 숨김: 폼 화면 규칙 있으면 경로만 추가
 
 ## 금지 사항
-- App.tsx / main.tsx 수정 금지
-- 새로운 라우트·Provider 추가 금지
-- SDK 가드 없는 generateHapticFeedback 호출 금지
+- `main.tsx` 수정
+- HEX 색상 하드코딩 (var(--tds-*) 사용)
+- raw `<div>` 골격 (ScreenScaffold 필수)
+- 기존 파일 덮어쓰기
+- dev 서버 실행
