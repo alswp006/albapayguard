@@ -135,7 +135,7 @@ export interface RouteState {
   '/record/edit': { recordId: string } | undefined;
   '/records': { workplaceId?: string; yearMonth?: string; toast?: string } | undefined;
   '/breakdown': { workplaceId: string; yearMonth?: string } | undefined;
-  '/check': { workplaceId: string; yearMonth?: string } | undefined;
+  '/check': { workplaceId: string; yearMonth?: string; toast?: string } | undefined;
   '/check/result': { workplaceId: string; yearMonth: string; actualPaidAmount: number } | undefined;
   '/workplace': { workplaceId?: string; toast?: string } | undefined;
   '/workplace/new': { from: 'onboarding' } | undefined;

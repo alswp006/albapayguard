@@ -1,6 +1,6 @@
-import { useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Top, Paragraph, Spacing, TextField, Button, Asset } from '@toss/tds-mobile';
+import { Top, Paragraph, Spacing, TextField, Button, Asset, Toast } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { Card } from '@/components/Card';
 import { Amount } from '@/components/Amount';
@@ -95,6 +95,12 @@ export default function Check() {
   const [monthOverride, setMonthOverride] = useState<string | null>(null);
   const [amountDisplay, setAmountDisplay] = useState('');
   const [amountError, setAmountError] = useState(false);
+  const incomingToast = state?.toast;
+  const [savedToastOpen, setSavedToastOpen] = useState(Boolean(incomingToast));
+
+  useEffect(() => {
+    if (incomingToast) setSavedToastOpen(true);
+  }, [incomingToast]);
 
   const workplaceId = workplaceOverride ?? initialWorkplaceId;
   const yearMonth = monthOverride ?? initialYearMonth;
@@ -266,6 +272,14 @@ export default function Check() {
       </Button>
 
       <Spacing size={16} />
+
+      <Toast
+        open={savedToastOpen}
+        position="bottom"
+        text={incomingToast ?? ''}
+        duration={3000}
+        onClose={() => setSavedToastOpen(false)}
+      />
     </ScreenScaffold>
   );
 }

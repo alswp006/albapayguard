@@ -1,14 +1,16 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Top, Paragraph, Spacing, Button } from '@toss/tds-mobile';
+import { Top, Paragraph, Spacing, Button, Toast } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { Card } from '@/components/Card';
+import { SubmitFooter } from '@/components/BottomCTA';
 import { TossRewardAd } from '@/components/TossRewardAd';
 import { LoadingState } from '@/components/StateView';
 import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
-import { analyzePay, isUnlocked, type PayAnalysisResult } from '@/lib/analysis';
+import { useHaptic } from '@/hooks/useHaptic';
+import { analyzePay, isUnlocked } from '@/lib/analysis';
 import { CheckResultCore } from '@/pages/CheckResultCore';
-import type { MonthlyPayroll, RouteState } from '@/lib/types';
+import type { RouteState } from '@/lib/types';
 
 const UNLOCK_DURATION_MS = 24 * 60 * 60 * 1000;
 
@@ -17,8 +19,9 @@ function unlockKey(workplaceId: string, yearMonth: string): string {
 }
 
 /**
- * `/check/result` 라우트 엔트리 — 리워드 광고 게이트 + PayCheck upsert를 담당하고,
- * 실제 결과 표시는 CheckResultCore에 위임한다.
+ * `/check/result` 라우트 엔트리 — 리워드 광고 게이트 + PayCheck 저장(F6 AC-6: 사용자가
+ * SubmitFooter "분석 결과 저장"을 탭할 때만 저장)을 담당하고, 실제 결과 표시는
+ * CheckResultCore에 위임한다.
  */
 export default function CheckResultAd() {
   const navigate = useNavigate();
@@ -52,9 +55,13 @@ function CheckResultAdContent({
   actualPaidAmount: number;
 }) {
   const navigate = useNavigate();
-  const { loading, workplaces, settings, patchSettings } = useAppData();
+  const { haptic } = useHaptic();
+  const { loading, workplaces, settings, patchSettings, savePayCheck } = useAppData();
   const payroll = useMonthlyPayroll(workplaceId, yearMonth);
   const workplace = workplaces.find((w) => w.id === workplaceId) ?? null;
+
+  const [saving, setSaving] = useState(false);
+  const [saveErrorToastOpen, setSaveErrorToastOpen] = useState(false);
 
   const top = <Top title={<Top.TitleParagraph>분석 결과</Top.TitleParagraph>} />;
 
@@ -107,10 +114,31 @@ function CheckResultAdContent({
     navigate('/records', { state: { workplaceId, yearMonth } satisfies RouteState['/records'] });
   }
 
+  // F6 AC-6: "분석 결과 저장" 탭 시에만 PayCheck를 upsert하고, 성공하면 Toast와 함께
+  // /check로 복귀한다. 자동 저장하지 않는다 — 사용자가 결과를 보고도 저장을 원치 않을 수 있다.
+  async function handleSaveResult() {
+    setSaving(true);
+    const result = await savePayCheck(workplaceId, yearMonth, {
+      actualPaidAmount,
+      calculatedGross: payroll!.gross,
+      calculatedNet: payroll!.net,
+      diff: analysis.diff,
+      suspects: analysis.suspects,
+    });
+    setSaving(false);
+    if (!result.ok) {
+      setSaveErrorToastOpen(true);
+      return;
+    }
+    haptic('success');
+    navigate('/check', {
+      replace: true,
+      state: { workplaceId, yearMonth, toast: '분석 결과를 저장했어요' } satisfies RouteState['/check'],
+    });
+  }
+
   const body = (
-    <UnlockedResult
-      workplaceId={workplaceId}
-      yearMonth={yearMonth}
+    <CheckResultCore
       actualPaidAmount={actualPaidAmount}
       payroll={payroll}
       analysis={analysis}
@@ -119,9 +147,20 @@ function CheckResultAdContent({
   );
 
   return (
-    <ScreenScaffold top={top}>
+    <ScreenScaffold
+      top={top}
+      bottom={
+        unlocked ? (
+          <SubmitFooter label="분석 결과 저장" onClick={handleSaveResult} loading={saving} />
+        ) : undefined
+      }
+    >
       {unlocked ? (
-        body
+        <>
+          {body}
+          {/* FixedBottomCTA는 position:fixed라 마지막 줄이 버튼 뒤에 가려지지 않게 여백을 둔다 */}
+          <Spacing size={96} />
+        </>
       ) : (
         <TossRewardAd
           slotId={import.meta.env.VITE_TOSS_AD_SLOT_ID ?? ''}
@@ -132,48 +171,14 @@ function CheckResultAdContent({
           {body}
         </TossRewardAd>
       )}
+
+      <Toast
+        open={saveErrorToastOpen}
+        position="bottom"
+        text="저장 공간이 부족합니다. 오래된 기록을 삭제해주세요"
+        duration={3000}
+        onClose={() => setSaveErrorToastOpen(false)}
+      />
     </ScreenScaffold>
-  );
-}
-
-/** 해제된 결과 노출 시점에 PayCheck를 정확히 1회 upsert하고, 배너 광고 슬롯을 덧붙인다. */
-function UnlockedResult({
-  workplaceId,
-  yearMonth,
-  actualPaidAmount,
-  payroll,
-  analysis,
-  onViewRecords,
-}: {
-  workplaceId: string;
-  yearMonth: string;
-  actualPaidAmount: number;
-  payroll: MonthlyPayroll;
-  analysis: PayAnalysisResult;
-  onViewRecords: () => void;
-}) {
-  const { savePayCheck } = useAppData();
-  const savedRef = useRef(false);
-
-  useEffect(() => {
-    if (savedRef.current) return;
-    savedRef.current = true;
-    savePayCheck(workplaceId, yearMonth, {
-      actualPaidAmount,
-      calculatedGross: payroll.gross,
-      calculatedNet: payroll.net,
-      diff: analysis.diff,
-      suspects: analysis.suspects,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <CheckResultCore
-      actualPaidAmount={actualPaidAmount}
-      payroll={payroll}
-      analysis={analysis}
-      onViewRecords={onViewRecords}
-    />
   );
 }

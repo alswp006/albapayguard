@@ -19,8 +19,9 @@
  *   `"덜 받았을 수 있어요"`가 포함된다.
  * - 차액 ≤ 0(정상 지급)이면 화면 전체 텍스트에 `"정상 지급으로 보여요"`가 포함되고
  *   suspect-card는 0개다.
- * - 결과가 표시되면(=해제 상태 렌더 시) `useAppData().savePayCheck(workplaceId, yearMonth, {
- *   actualPaidAmount, calculatedGross, calculatedNet, diff, suspects })`가 정확히 1회 호출된다
+ * - 결과가 표시된 것만으로는 저장되지 않는다. 사용자가 SubmitFooter의 "분석 결과 저장" 버튼을
+ *   탭해야만 `useAppData().savePayCheck(workplaceId, yearMonth, { actualPaidAmount,
+ *   calculatedGross, calculatedNet, diff, suspects })`가 정확히 1회 호출된다(spec F6 AC-6)
  *   (repository.upsertPayCheck가 동일 workplaceId+yearMonth 행을 1건으로 유지·updatedAt 갱신하는
  *   로직은 이미 구현·검증돼 있으므로, 이 페이지 테스트는 올바른 인자로 정확히 1회 호출되는지만 본다).
  * - 화면 어딘가에 정확히 "법정 기준 자동 계산 결과이며 법적 효력이 없습니다" 텍스트와, 고용노동부
@@ -255,11 +256,16 @@ describe("미지급 분석 결과 페이지 `/check/result` (리워드 광고 �
     expect(screen.queryAllByTestId("suspect-card")).toHaveLength(0);
   });
 
-  it("AC-4[P0]: 결과가 표시되면 PayCheck가 upsert 형태로 정확히 1회 저장된다", () => {
+  it("AC-4[P0]: 결과가 표시되는 것만으로는 저장되지 않고, '분석 결과 저장' 탭 시에만 PayCheck가 upsert 형태로 정확히 1회 저장된다", () => {
     scenario.rewardUnlocks = { [UNLOCK_KEY]: "2099-01-01T00:00:00.000Z" };
     const { diff, suspects } = analyzePay(PAYROLL_FOR_ANALYSIS, UNDERPAID_AMOUNT);
 
     renderResult(UNDERPAID_AMOUNT);
+
+    // 결과가 보이는 것만으로는 아직 저장되지 않는다
+    expect(mockSavePayCheck).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "분석 결과 저장" }));
 
     expect(mockSavePayCheck).toHaveBeenCalledTimes(1);
     expect(mockSavePayCheck).toHaveBeenCalledWith(

@@ -13,6 +13,9 @@ import { useHaptic } from '@/hooks/useHaptic';
 import { formatNumber } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
 
+/** payrollMonthly.ts의 주휴수당 지급 기준(15h)과 동일 — 미충족 주의 "N시간 더 일하면" 안내에 사용 */
+const WEEKLY_HOLIDAY_ELIGIBLE_MINUTES = 15 * 60;
+
 function currentYearMonth(): string {
   const now = new Date();
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
@@ -219,7 +222,10 @@ export default function Breakdown() {
         <>
           <Card testId="weekly-holiday-card">
             {payroll.weeks.map((week) => {
-              const hours = Math.floor(week.weeklyMinutes / 60);
+              const remainingHours = Math.ceil((WEEKLY_HOLIDAY_ELIGIBLE_MINUTES - week.weeklyMinutes) / 60);
+              const bottom = week.eligible
+                ? `${formatNumber(week.amount)}원`
+                : `${remainingHours}시간 더 일하면 주휴수당 받을 수 있어요`;
               return (
                 <div key={week.weekStart} data-testid={`breakdown-week-${week.weekStart}`}>
                   <ListRow
@@ -227,12 +233,12 @@ export default function Breakdown() {
                       <ListRow.Texts
                         type="2RowTypeA"
                         top={formatWeekLabel(week.weekStart)}
-                        bottom={`주 ${hours}시간`}
+                        bottom={bottom}
                       />
                     }
                     right={
                       <Badge size="small" variant="weak" color={week.eligible ? 'blue' : 'elephant'}>
-                        {week.eligible ? '지급' : '미지급'}
+                        {week.eligible ? '충족' : '미충족'}
                       </Badge>
                     }
                   />
