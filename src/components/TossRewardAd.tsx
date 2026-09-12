@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Button, Paragraph } from "@toss/tds-mobile";
 import {
   loadFullScreenAd,
   showFullScreenAd,
@@ -119,15 +120,20 @@ export function TossRewardAd({
 
   return (
     <div className="reward-ad-gate">
-      <p className="reward-ad-description">{description}</p>
-      <button
-        className={`reward-ad-button${isShowing ? " reward-ad-button--loading" : ""}`}
-        onClick={handleWatch}
+      <Paragraph.Text typography="st11" className="reward-ad-description">
+        {description}
+      </Paragraph.Text>
+      <Button
+        className="reward-ad-button"
+        variant="fill"
+        display="block"
+        loading={isShowing}
         disabled={isShowing || !adLoaded}
+        onClick={handleWatch}
         aria-label={buttonText}
       >
         {isShowing ? "광고 재생 중..." : !adLoaded ? "광고 준비 중..." : buttonText}
-      </button>
+      </Button>
     </div>
   );
 }
