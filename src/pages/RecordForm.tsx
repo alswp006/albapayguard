@@ -1,6 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { AlertDialog, Asset, Button, ListRow, Paragraph, Spacing, Switch, TextField, Toast, Top } from '@toss/tds-mobile';
+import {
+  AlertDialog,
+  Asset,
+  Button,
+  ListRow,
+  Paragraph,
+  Spacing,
+  Switch,
+  TextField,
+  Toast,
+  Top,
+  TopNavigation,
+  TopNavigationBackButton,
+  TopNavigationTextButton,
+} from '@toss/tds-mobile';
+import { Amount } from '@/components/Amount';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { SubmitFooter } from '@/components/BottomCTA';
 import { Card } from '@/components/Card';
@@ -204,6 +219,12 @@ export default function RecordForm() {
     navigate(ROUTES.records, { state: { toast: '저장했어요' } satisfies RouteState['/records'] });
   }
 
+  // 뒤로가기는 항상 기록 목록으로 — history를 -1로 되감으면 주소로 바로 들어온 경우(딥링크,
+  // 새로고침) 앱 밖으로 나가버린다. 목록은 탭바가 있는 화면이라 어디로든 다시 갈 수 있다.
+  function handleBack() {
+    navigate(ROUTES.records);
+  }
+
   function handleSelectWorkplace(nextId: string) {
     haptic('tickWeak');
     setWorkplaceId(nextId);
@@ -234,16 +255,19 @@ export default function RecordForm() {
   return (
     <ScreenScaffold
       top={
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ flex: 1 }}>
-            <Top title={<Top.TitleParagraph>{isEdit ? '기록 수정' : '근무 기록'}</Top.TitleParagraph>} />
-          </div>
-          {isEdit && (
-            <Button variant="weak" size="small" color="danger" onClick={() => setDeleteDialogOpen(true)}>
-              삭제
-            </Button>
-          )}
-        </div>
+        <>
+          {/* `/record/*`에서는 하단 탭바가 숨겨진다 — 뒤로가기가 없으면 저장·삭제 말고는 빠져나갈
+              길이 없는 화면이 된다. TDS 내비 바(leading/trailing)로 나가는 길과 삭제를 함께 둔다. */}
+          <TopNavigation
+            leading={<TopNavigationBackButton aria-label="뒤로" onClick={handleBack} />}
+            trailing={
+              isEdit ? (
+                <TopNavigationTextButton onClick={() => setDeleteDialogOpen(true)}>삭제</TopNavigationTextButton>
+              ) : undefined
+            }
+          />
+          <Top title={<Top.TitleParagraph>{isEdit ? '기록 수정' : '근무 기록'}</Top.TitleParagraph>} />
+        </>
       }
       bottom={<SubmitFooter label="저장하기" onClick={handleSave} loading={submitting} />}
     >
@@ -297,11 +321,13 @@ export default function RecordForm() {
         onChange={(e) => setDate(e.target.value)}
       />
       <Spacing size={12} />
+      {/* 빈 칸에서는 플로팅 라벨이 위로 떠 숨는다(line variant) — placeholder만 읽고도
+          무엇을 넣는 칸인지 알 수 있게 항목 이름을 넣는다. 신규 기록 화면이 특히 그렇다. */}
       <TextField
         ref={startRef}
         variant="line"
         label="출근 시각"
-        placeholder="09:00"
+        placeholder="출근 09:00"
         inputMode="numeric"
         enterKeyHint="next"
         hasError={Boolean(error)}
@@ -314,7 +340,7 @@ export default function RecordForm() {
         ref={endRef}
         variant="line"
         label="퇴근 시각"
-        placeholder="18:00"
+        placeholder="퇴근 18:00"
         inputMode="numeric"
         enterKeyHint="next"
         hasError={Boolean(error)}
@@ -334,7 +360,7 @@ export default function RecordForm() {
       <TextField
         variant="line"
         label="휴게시간(분)"
-        placeholder="30"
+        placeholder="휴게 30"
         inputMode="numeric"
         enterKeyHint="next"
         value={breakMinutes}
@@ -350,12 +376,13 @@ export default function RecordForm() {
       <Card testId="record-preview">
         {daily ? (
           <>
-            <Paragraph.Text typography="t5" data-testid="record-preview-worked">
-              실근로 {formatWorkedDuration(daily.workedMinutes)}
-            </Paragraph.Text>
+            {/* 숫자만 있으면 그게 무슨 금액인지 알 수 없다 — 라벨을 붙이고 금액을 앵커로 키운다. */}
+            <Paragraph.Text typography="st13">예상 일급</Paragraph.Text>
+            <Spacing size={2} />
+            <Amount value={daily.total} typography="t2" testId="record-preview-pay" />
             <Spacing size={4} />
-            <Paragraph.Text typography="t3" data-testid="record-preview-pay">
-              {formatNumber(daily.total)}원
+            <Paragraph.Text typography="t6" data-testid="record-preview-worked">
+              실근로 {formatWorkedDuration(daily.workedMinutes)}
             </Paragraph.Text>
             {overnight && (
               <>

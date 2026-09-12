@@ -138,18 +138,30 @@ export function mockTds() {
         ),
     ),
 
+    // title은 이미 Top.TitleParagraph(<h1>)로 넘어온다 — 여기서 한 번 더 <h1>로 감싸면
+    // "<h1> cannot appear as a child of <h1>"(React의 console.error)가 모든 페이지 테스트에서
+    // 났다. 콘솔 에러 0건을 단언하는 테스트가 React의 중복 경고 억제에 기대는 상태였다.
     Top: Object.assign(
-      ({ children, title }: any) =>
-        React.createElement(
-          "nav",
-          { role: "navigation" },
-          title && React.createElement("h1", null, title),
-          children,
-        ),
+      ({ children, title, right, upper, lower }: any) =>
+        React.createElement("nav", { role: "navigation" }, upper, title, right, lower, children),
       {
         TitleParagraph: ({ children }: any) => React.createElement("h1", null, children),
       },
     ),
+
+    // TopNavigation — 뒤로가기/우측 액션을 담는 상단 내비 바(Top의 큰 제목과 함께 쓴다).
+    // leading/content/trailing 세 슬롯을 그대로 렌더해야 "뒤로" 버튼·우측 액션 단언이 동작한다.
+    TopNavigation: ({ leading, content, trailing }: any) =>
+      React.createElement("div", { "data-slot": "top-navigation" }, leading, content, trailing),
+
+    TopNavigationBackButton: ({ "aria-label": ariaLabel, onClick }: any) =>
+      React.createElement("button", { "aria-label": ariaLabel ?? "뒤로", onClick }),
+
+    TopNavigationIconButton: ({ "aria-label": ariaLabel, name, onClick }: any) =>
+      React.createElement("button", { "aria-label": ariaLabel, "data-icon": name, onClick }),
+
+    TopNavigationTextButton: ({ children, onClick }: any) =>
+      React.createElement("button", { onClick }, children),
 
     Border: () => React.createElement("hr"),
 
