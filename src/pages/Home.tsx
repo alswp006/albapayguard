@@ -16,11 +16,8 @@ import { AdSlotBanner } from '@/components/AdSlotBanner';
 import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
 import type { MonthlyPayroll, RouteState } from '@/lib/types';
+import { nowKst, todayKst } from '@/lib/utils';
 import { ROUTES, toRecordEdit } from '@/routes';
-
-function todayISODate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /** offset개월 뒤(음수면 이전)의 연/월을 UTC 기준으로 계산 — 로컬 타임존 밀림 방지 */
 function shiftYearMonth(base: Date, offset: number) {
@@ -60,7 +57,7 @@ export default function Home() {
   const { loading, workplaces, records, settings, setActiveWorkplace } = useAppData();
   const [monthOffset, setMonthOffset] = useState(0);
 
-  const { yearMonth, year, month } = shiftYearMonth(new Date(), monthOffset);
+  const { yearMonth, year, month } = shiftYearMonth(nowKst(), monthOffset);
   const isCurrentMonth = monthOffset === 0;
   const monthLabel = `${year}년 ${month}월`;
 
@@ -101,7 +98,7 @@ export default function Home() {
     navigate(ROUTES.recordNew, {
       state: {
         workplaceId: activeWorkplaceId,
-        date: todayISODate(),
+        date: todayKst(),
       } satisfies RouteState['/record/new'],
     });
   }

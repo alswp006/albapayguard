@@ -11,26 +11,34 @@ import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
 import { calcDaily } from '@/lib/payrollDaily';
 import type { RouteState } from '@/lib/types';
+import { nowKst } from '@/lib/utils';
 import { ROUTES, toRecordEdit } from '@/routes';
 
 const PAGE_SIZE = 20;
 const RECENT_MONTHS = 6;
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const YEAR_MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 function currentYearMonth(): string {
-  const now = new Date();
+  const now = nowKst();
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 /** 오늘 기준 최근 count개월(당월 포함, 최신순) 'YYYY-MM' 목록 */
 function recentYearMonths(count: number): string[] {
-  const now = new Date();
+  const now = nowKst();
   const months: string[] = [];
   for (let i = 0; i < count; i++) {
     const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
     months.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
   }
   return months;
+}
+
+/** 형식이 틀렸거나("abc", "2026-13") 미래 월인 yearMonth는 현재 월로 되돌린다 */
+function sanitizeYearMonth(yearMonth: string | undefined, fallback: string): string {
+  if (!yearMonth || !YEAR_MONTH_PATTERN.test(yearMonth)) return fallback;
+  return yearMonth > fallback ? fallback : yearMonth;
 }
 
 function monthChipLabel(yearMonth: string, currentYear: number): string {
@@ -64,6 +72,7 @@ export default function Records() {
   const [monthOverride, setMonthOverride] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deletedToastOpen, setDeletedToastOpen] = useState(false);
 
   useEffect(() => {
     if (incomingToast) setSavedToastOpen(true);
@@ -79,7 +88,7 @@ export default function Records() {
     workplaceOverride && workplaces.some((w) => w.id === workplaceOverride)
       ? workplaceOverride
       : stateWorkplaceId;
-  const yearMonth = monthOverride ?? state?.yearMonth ?? currentYearMonth();
+  const yearMonth = monthOverride ?? sanitizeYearMonth(state?.yearMonth, currentYearMonth());
 
   const workplace = workplaces.find((w) => w.id === workplaceId) ?? null;
   const payroll = useMonthlyPayroll(workplaceId, yearMonth);
@@ -115,9 +124,13 @@ export default function Records() {
 
   async function handleConfirmDelete() {
     if (!deleteTargetId) return;
-    await removeRecord(deleteTargetId);
-    haptic('success');
+    const result = await removeRecord(deleteTargetId);
     setDeleteTargetId(null);
+    if (result.ok) {
+      haptic('success');
+      setDeletedToastOpen(true);
+    }
+    // 실패 시 AppDataProvider가 "삭제하지 못했어요" Toast를 이미 띄운다.
   }
 
   function handleAddRecord() {
@@ -283,12 +296,24 @@ export default function Records() {
         onClose={() => setDeleteTargetId(null)}
       />
 
+      {/* 탭 루트 화면은 하단에 FloatingTabBar가 고정돼 있다 — higherThanCTA로 그 위에 띄워
+          토스트가 탭 라벨(예: '기록')을 순간적으로 가리지 않게 한다. */}
       <Toast
         open={savedToastOpen}
         position="bottom"
         text={incomingToast ?? ''}
         duration={3000}
+        higherThanCTA
         onClose={() => setSavedToastOpen(false)}
+      />
+
+      <Toast
+        open={deletedToastOpen}
+        position="bottom"
+        text="기록을 삭제했어요"
+        duration={3000}
+        higherThanCTA
+        onClose={() => setDeletedToastOpen(false)}
       />
     </ScreenScaffold>
   );

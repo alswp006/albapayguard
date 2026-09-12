@@ -189,11 +189,13 @@ export default function Workplace() {
         onClose={() => setDeleteTargetId(null)}
       />
 
+      {/* 탭 루트 화면(FloatingTabBar 고정) — higherThanCTA로 탭 라벨을 가리지 않게 띄운다. */}
       <Toast
         open={savedToastOpen}
         position="bottom"
         text={incomingToast ?? ''}
         duration={3000}
+        higherThanCTA
         onClose={() => setSavedToastOpen(false)}
       />
 
@@ -202,6 +204,7 @@ export default function Workplace() {
         position="bottom"
         text="삭제하지 못했어요. 다시 시도해주세요"
         duration={3000}
+        higherThanCTA
         onClose={() => setDeleteErrorToastOpen(false)}
       />
     </ScreenScaffold>

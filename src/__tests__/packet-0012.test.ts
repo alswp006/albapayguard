@@ -4,8 +4,9 @@
  * 이 테스트가 강제하는 Check.tsx 계약(testId/aria):
  * - data-testid="check-amount-input"   → 실지급액 TextField(raw <input>, TDS mock이 ...props 그대로 전달)
  *   입력 시 천 단위 콤마로 즉시 재포맷되어 표시된다("206400" 입력 → "206,400" 표시).
- * - 검증 실패(미입력 또는 100,000,000 초과) 시 TextField의 hasError+help로 role="alert" 텍스트
- *   "0원 이상 1억원 이하로 입력해주세요"가 뜨고, "분석하기" 버튼을 눌러도 navigate가 호출되지 않는다.
+ * - 검증 실패 시 TextField의 hasError+help로 role="alert" 텍스트가 뜨고("실제 받은 금액을
+ *   입력해주세요"=미입력, "0원 이상 1억원 이하로 입력해주세요"=범위 초과), "분석하기" 버튼을
+ *   눌러도 navigate가 호출되지 않는다.
  * - data-testid="check-summary-card"   → 계산된 실수령액 요약 Card
  * - data-testid="check-summary-amount" → 카드 내부, 텍스트가 정확히 `${formatNumber(net)}원`
  * - 해당 근무지·월 기록이 0건이면 EmptyState + role="button" name="기록 추가하기" (요약 금액 대신)
@@ -146,7 +147,7 @@ describe("미지급 분석 입력 페이지 `/check`", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "분석하기" }));
 
-    expect(screen.getByRole("alert").textContent).toBe("0원 이상 1억원 이하로 입력해주세요");
+    expect(screen.getByRole("alert").textContent).toBe("실제 받은 금액을 입력해주세요");
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 

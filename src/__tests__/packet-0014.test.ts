@@ -49,6 +49,7 @@ const scenario = {
 
 const removeRecordMock = vi.fn(async (id: string) => {
   scenario.records = scenario.records.filter((r) => r.id !== id);
+  return { ok: true };
 });
 
 vi.mock("@/hooks/useAppData", () => ({

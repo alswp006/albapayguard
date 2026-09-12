@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { Top, Paragraph, Spacing, Asset } from '@toss/tds-mobile';
+import { Top, Paragraph, Spacing } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
+import { SafeIcon } from '@/components/SafeIcon';
 import { SubmitFooter } from '@/components/BottomCTA';
 import { useAppData } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
+import type { RouteState } from '@/lib/types';
 import { ROUTES } from '@/routes';
 
 interface Step {
@@ -26,7 +28,10 @@ export default function Onboarding() {
   function handleStart() {
     haptic('success');
     void patchSettings({ onboardingSeenAt: new Date().toISOString() });
-    navigate(ROUTES.workplaceNew, { replace: true });
+    navigate(ROUTES.workplaceNew, {
+      replace: true,
+      state: { from: 'onboarding' } satisfies RouteState['/workplace/new'],
+    });
   }
 
   return (
@@ -37,7 +42,9 @@ export default function Onboarding() {
       <div data-testid="onboarding-step">
         {STEPS.map((s, i) => (
           <div key={s.title}>
-            <Asset.ContentIcon name="iconStarRegular" alt={s.title} />
+            {/* 바로 아래 제목이 이미 같은 내용을 전달한다 — 아이콘은 순수 장식이라 alt를 비운다.
+                아이콘 로드가 실패해도(불안정한 네트워크) SafeIcon이 조용히 숨겨 겹친 alt 텍스트가 뜨지 않는다. */}
+            <SafeIcon name="iconStarRegular" alt="" />
             <Spacing size={12} />
             <Paragraph.Text typography="t3">{s.title}</Paragraph.Text>
             <Spacing size={4} />

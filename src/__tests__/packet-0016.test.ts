@@ -6,7 +6,8 @@
  * - data-testid="onboarding-step" 요소는 항상 정확히 1개이며, 그 안의 단계 Chip을 눌러도
  *   아무 네비게이션도 일어나지 않는다(표시 전용).
  * - '시작하기' 탭 시 apg:settings:v1의 onboardingSeenAt이 ISO8601 문자열로 저장된다.
- * - navigate는 '/workplace/new'를 { replace: true }로 호출한다(뒤로가기로 /onboarding 복귀 방지).
+ * - navigate는 '/workplace/new'를 { replace: true, state: { from: "onboarding" } }로 호출한다
+ *   (뒤로가기로 /onboarding 복귀 방지, WorkplaceForm이 이 state로 취소/저장 후 목적지를 홈으로 바꾼다).
  * - 1차 액션 버튼은 정확히 1개이고 button 중첩이 없다(SubmitFooter/FixedBottomCTA 기반, 전체폭).
  * - NotFound는 EmptyState(data-testid="notfound-empty") + '홈으로 가기' Button을 렌더하고,
  *   탭 시 navigate('/', { replace: true })가 호출된다.
@@ -94,7 +95,10 @@ describe("[부가] 온보딩 `/onboarding` · 404 페이지", () => {
     fireEvent.click(screen.getByRole("button", { name: "시작하기" }));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith("/workplace/new", { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith("/workplace/new", {
+        replace: true,
+        state: { from: "onboarding" },
+      });
     });
     expect(mockNavigate).toHaveBeenCalledTimes(1);
   });

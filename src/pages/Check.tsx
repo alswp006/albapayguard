@@ -8,21 +8,22 @@ import { Amount } from '@/components/Amount';
 import { EmptyState, LoadingState } from '@/components/StateView';
 import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
-import { formatNumber } from '@/lib/utils';
+import { formatNumber, nowKst } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
 import { ROUTES } from '@/routes';
 
 const MAX_AMOUNT = 100_000_000;
-const AMOUNT_ERROR = '0원 이상 1억원 이하로 입력해주세요';
+const AMOUNT_EMPTY_ERROR = '실제 받은 금액을 입력해주세요';
+const AMOUNT_RANGE_ERROR = '0원 이상 1억원 이하로 입력해주세요';
 
 function currentYearMonth(): string {
-  const now = new Date();
+  const now = nowKst();
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 /** 오늘 기준 최근 count개월(당월 포함, 최신순) 'YYYY-MM' 목록 */
 function recentYearMonths(count: number): string[] {
-  const now = new Date();
+  const now = nowKst();
   const months: string[] = [];
   for (let i = 0; i < count; i++) {
     const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
@@ -33,7 +34,7 @@ function recentYearMonths(count: number): string[] {
 
 function formatMonthLabel(yearMonth: string): string {
   const [year, month] = yearMonth.split('-').map(Number);
-  const isThisYear = year === new Date().getUTCFullYear();
+  const isThisYear = year === nowKst().getUTCFullYear();
   return isThisYear ? `${month}월` : `${year}년 ${month}월`;
 }
 
@@ -60,7 +61,7 @@ export default function Check() {
   const [workplaceOverride, setWorkplaceOverride] = useState<string | null>(null);
   const [monthOverride, setMonthOverride] = useState<string | null>(null);
   const [amountDisplay, setAmountDisplay] = useState('');
-  const [amountError, setAmountError] = useState(false);
+  const [amountError, setAmountError] = useState<string | null>(null);
   const incomingToast = state?.toast;
   const [savedToastOpen, setSavedToastOpen] = useState(Boolean(incomingToast));
 
@@ -89,7 +90,7 @@ export default function Check() {
   function handleAmountChange(e: ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^0-9]/g, '');
     setAmountDisplay(digits === '' ? '' : formatNumber(Number(digits)));
-    if (amountError) setAmountError(false);
+    if (amountError) setAmountError(null);
   }
 
   function handleAddRecord() {
@@ -109,11 +110,15 @@ export default function Check() {
     // '/check'는 탭 루트라 고정 CTA를 쓰면 FloatingTabBar와 겹친다(본문 내 전체폭 버튼으로 대체).
     haptic('success');
     const amount = parseAmount(amountDisplay);
-    if (Number.isNaN(amount) || amount < 0 || amount > MAX_AMOUNT) {
-      setAmountError(true);
+    if (Number.isNaN(amount)) {
+      setAmountError(AMOUNT_EMPTY_ERROR);
       return;
     }
-    setAmountError(false);
+    if (amount < 0 || amount > MAX_AMOUNT) {
+      setAmountError(AMOUNT_RANGE_ERROR);
+      return;
+    }
+    setAmountError(null);
     if (!workplaceId) return;
     navigate(ROUTES.checkResult, {
       state: { workplaceId, yearMonth, actualPaidAmount: amount } satisfies RouteState['/check/result'],
@@ -217,8 +222,8 @@ export default function Check() {
         suffix="원"
         value={amountDisplay}
         onChange={handleAmountChange}
-        hasError={amountError}
-        help={amountError ? AMOUNT_ERROR : undefined}
+        hasError={Boolean(amountError)}
+        help={amountError ?? undefined}
         data-testid="check-amount-input"
       />
 
@@ -239,11 +244,13 @@ export default function Check() {
 
       <Spacing size={16} />
 
+      {/* 탭 루트 화면(FloatingTabBar 고정) — higherThanCTA로 탭 라벨을 가리지 않게 띄운다. */}
       <Toast
         open={savedToastOpen}
         position="bottom"
         text={incomingToast ?? ''}
         duration={3000}
+        higherThanCTA
         onClose={() => setSavedToastOpen(false)}
       />
     </ScreenScaffold>

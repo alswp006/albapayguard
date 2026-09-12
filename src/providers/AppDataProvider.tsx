@@ -78,7 +78,20 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         setWorkplaces(wp);
         setRecords(rec);
         setPayChecks(pay);
-        setSettings(st);
+        // activeWorkplaceId가 없거나(신규/미보정 설정) 존재하지 않는 근무지를 가리키면(삭제·손상)
+        // 화면마다 매번 대체 계산만 하고 저장은 안 하는 유실 상태가 된다 — 로드 시점에 한 번 보정해
+        // 저장소와 화면이 같은 값을 보게 한다.
+        if (wp.length > 0 && !wp.some((w) => w.id === st.activeWorkplaceId)) {
+          const repaired = await patchSettingsRepo({ activeWorkplaceId: wp[0].id });
+          if (!cancelled && repaired.ok) {
+            const { ok: _ok, ...repairedSettings } = repaired;
+            setSettings(repairedSettings as AppSettings);
+          } else if (!cancelled) {
+            setSettings(st);
+          }
+        } else {
+          setSettings(st);
+        }
         if (consumeCorruptionFlag()) {
           setCorruptToastOpen(true);
         }
@@ -103,6 +116,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     if (result.ok) {
       const { ok: _ok, ...workplace } = result;
       setWorkplaces((prev) => [...prev, workplace as Workplace]);
+      // F1 AC-1: 첫 근무지는 곧바로 활성 근무지가 되어야 한다 — 그렇지 않으면 홈이 다시 로드될
+      // 때까지 화면상 계산 대상 근무지와 저장된 activeWorkplaceId가 어긋난다.
+      if (!settings.activeWorkplaceId) {
+        void setActiveWorkplace((workplace as Workplace).id);
+      }
     } else {
       flagWriteFailure(result.reason);
     }

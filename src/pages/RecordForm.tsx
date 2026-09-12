@@ -25,17 +25,13 @@ import { useAppData } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
 import { isDuplicateRecord, validateRecord } from '@/lib/repository';
 import { calcDaily, parseHHmm } from '@/lib/payrollDaily';
-import { formatNumber } from '@/lib/utils';
+import { formatNumber, todayKst } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
 import { ROUTES } from '@/routes';
 
 // S2 스펙이 명시한 시각 프리셋 — 대부분의 알바 근무는 이 네 시각 중 하나에서 시작/끝난다.
 // 자유입력 TextField만 있으면 매번 4자리를 직접 타이핑해야 해 완주율이 떨어진다.
 const TIME_PRESETS = ['09:00', '13:00', '18:00', '22:00'] as const;
-
-function todayISODate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function spanMinutes(startTime: string, endTime: string): number | null {
   const start = parseHHmm(startTime);
@@ -83,7 +79,7 @@ export default function RecordForm() {
   // 계산 중인지 보이지 않으면 사용자는 금액이 왜 그런지 알 수 없다. 빈 값으로 시작해
   // (저장소 로딩 전에는 workplaces가 비어 있다) 아래 effect에서 확정한다.
   const [workplaceId, setWorkplaceId] = useState(() => existing?.workplaceId ?? newState?.workplaceId ?? '');
-  const [date, setDate] = useState(() => existing?.date ?? newState?.date ?? todayISODate());
+  const [date, setDate] = useState(() => existing?.date ?? newState?.date ?? todayKst());
   const [startTime, setStartTime] = useState(() => existing?.startTime ?? '');
   const [endTime, setEndTime] = useState(() => existing?.endTime ?? '');
   const [breakMinutes, setBreakMinutes] = useState(() => (existing ? String(existing.breakMinutes) : ''));
@@ -349,7 +345,7 @@ export default function RecordForm() {
         ref={startRef}
         variant="line"
         label="출근 시각"
-        placeholder="출근 09:00"
+        placeholder="예: 09:00"
         inputMode="numeric"
         enterKeyHint="next"
         hasError={Boolean(error)}
@@ -375,7 +371,7 @@ export default function RecordForm() {
         ref={endRef}
         variant="line"
         label="퇴근 시각"
-        placeholder="퇴근 18:00"
+        placeholder="예: 18:00"
         inputMode="numeric"
         enterKeyHint="next"
         hasError={Boolean(error)}
@@ -408,7 +404,7 @@ export default function RecordForm() {
       <TextField
         variant="line"
         label="휴게시간(분)"
-        placeholder="휴게 30"
+        placeholder="예: 30"
         inputMode="numeric"
         enterKeyHint="next"
         value={breakMinutes}
@@ -432,6 +428,14 @@ export default function RecordForm() {
             <Paragraph.Text typography="t6" data-testid="record-preview-worked">
               실근로 {formatWorkedDuration(daily.workedMinutes)}
             </Paragraph.Text>
+            {daily.nightMinutes > 0 && (
+              <>
+                <Spacing size={4} />
+                <Paragraph.Text typography="st13" data-testid="record-preview-night">
+                  야간가산 {formatNumber(daily.nightPay)}원
+                </Paragraph.Text>
+              </>
+            )}
             {overnight && (
               <>
                 <Spacing size={4} />

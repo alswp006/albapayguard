@@ -10,7 +10,7 @@ import { EmptyState, LoadingState } from '@/components/StateView';
 import { AdSlot } from '@/components/AdSlot';
 import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
-import { formatNumber } from '@/lib/utils';
+import { formatNumber, nowKst } from '@/lib/utils';
 import type { RouteState } from '@/lib/types';
 import { ROUTES } from '@/routes';
 
@@ -18,7 +18,7 @@ import { ROUTES } from '@/routes';
 const WEEKLY_HOLIDAY_ELIGIBLE_MINUTES = 15 * 60;
 
 function currentYearMonth(): string {
-  const now = new Date();
+  const now = nowKst();
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
