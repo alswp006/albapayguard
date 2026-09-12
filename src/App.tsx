@@ -18,6 +18,7 @@ import Workplace from './pages/Workplace';
 import WorkplaceForm from './pages/WorkplaceForm';
 import Onboarding from './pages/Onboarding';
 import RecordForm from './pages/RecordForm';
+import RecordEdit from './pages/RecordEdit';
 import NotFound from './pages/NotFound';
 
 // Dev-only TDS Gallery route — `import.meta.env.DEV` is statically replaced
@@ -94,7 +95,7 @@ function AppRoutes() {
             <Route path="/" element={<HomeRoute />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/record/new" element={<RecordForm />} />
-            <Route path="/record/:id/edit" element={<RecordForm />} />
+            <Route path="/record/:id/edit" element={<RecordEdit />} />
             <Route path="/records" element={<Records />} />
             <Route path="/breakdown" element={<Breakdown />} />
             <Route path="/check" element={<Check />} />

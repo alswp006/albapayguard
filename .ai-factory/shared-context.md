@@ -181,6 +181,7 @@ export interface MonthlyPayroll {
     BottomCTA.tsx
     Card.tsx
     CountUp.tsx
+    DisclaimerGate.tsx
     FloatingTabBar.tsx
     LegalNotice.tsx
     MiniBar.tsx
@@ -239,7 +240,7 @@ export interface MonthlyPayroll {
 - storage.ts: export function getItem<T>(key: string): T | null; export function setItem<T>(key: string, value: T): void; export function removeItem(key: string): void; export interface WriteRawResult; export function consumeCorruptionFlag(): boolean; export function writeRaw(key: string, value: unknown): WriteRawResult; export function readRaw<T>( key: string, fallback: T, isValid: (data: unknown) => data is T ): T; export function isWorkplaceArray(data: unknown): data is Workplace[]
 - types.ts: export type TaxType = 'none' | 'freelance3_3'; export interface Workplace; export interface WorkRecord; export type SuspectKind = 'weeklyHoliday' | 'night' | 'overtime' | 'holiday' | 'minimumWage'; export interface PaySuspect; export interface PayCheck; export interface PayAnalysis; export interface AppSettings
 - utils.ts: export function cn(...classes: (string | boolean | undefined | null)[]): string; export function formatNumber(n: number): string; export function formatCurrency(n: number, currency = 'KRW'): string
-- workplaceIntegrity.ts: export type DeleteWorkplaceCascadeResult = |; export async function resolveActiveWorkplaceId(): Promise<string | null>; export async function countLinked(workplaceId: string): Promise<number>; export async function canAddWorkplace(): Promise<boolean>; export async function deleteWorkplaceCascade(workplaceId: string): ...
+- workplaceIntegrity.ts: export type DeleteWorkplaceCascadeResult = |; export async function resolveActiveWorkplaceId(): Promise<string | null>; export async function countLinked(workplaceId: string): Promise<number>; export async function canAddWorkplace(): Promise<boolean>; export async function deleteWorkplaceCascade...
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
@@ -256,30 +257,12 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0012: 미지급 분석 입력 페이지 `/check` (files: src/pages/Check.tsx)
 - 0013: 미지급 분석 결과 페이지 `/check/result` (리워드 광고 게이트) (files: src/pages/CheckResultCore.tsx, src/pages/CheckResultAd.tsx)
 - 0014: [부가] 기록 목록 페이지 `/records` (files: src/pages/Records.tsx)
-- 0017: 라우팅 배선 + 전역 Provider (진입점 소유) (files: src/App.tsx)
-- 0018: 광고·햅틱 헬퍼 컴포넌트 + 최종 UX 폴리시 (files: src/components/MonthNav.tsx, src/components/LegalNotice.tsx, src/hooks/useHaptic.ts)
-- 0015: [부가] 근무지 목록·등록·수정 페이지 `/workplace` (files: src/pages/Workplace.tsx, src/pages/WorkplaceForm.tsx)
-- 0016: [부가] 온보딩 `/onboarding` · 404 페이지 (files: src/pages/Onboarding.tsx, src/pages/NotFound.tsx)
-- heal-1-02: 기록 입력 페이지 `/record/new` 구현 (files: src/pages/RecordNew.tsx)
-- 0001: 엔티티 타입·상수·RouteState 정의 (files: src/lib/types.ts)
-- 0002: 저장소 원시 I/O — 키별 손상 복구 & 쓰기 가드 (files: src/lib/storage.ts)
-- 0003: 컬렉션 리포지토리 · 검증 · 스키마 마이그레이션 (files: src/lib/repository.ts)
-- 0004: 연쇄 삭제 트랜잭션 & 활성 근무지 포인터 정합성 (files: src/lib/workplaceIntegrity.ts)
-- 0005: 급여 계산 엔진 ① 일별 계산 (순수 함수) (files: src/lib/payrollDaily.ts)
-- 0006: 급여 계산 엔진 ② 주휴수당·최저임금·월 집계 (files: src/lib/payrollMonthly.ts)
-- 0007: 미지급 분석 산출 · 리워드 해제 · 금액 포맷 (files: src/lib/analysis.ts)
-- 0008: 상태 관리 — AppDataProvider (React Context) (files: src/providers/AppDataProvider.tsx, src/hooks/useAppData.ts)
-- 0009: 홈 대시보드 `/` (files: src/components/MonthNav.tsx, src/components/SummaryHero.tsx, src/components/Sparkline.tsx, src/components/MiniBar.tsx, src/components/RecentRecordsCard.tsx, src/components/AddRecordCTA.tsx, src/components/AdSlotBanner.tsx)
-- 0011: 급여 상세 페이지 `/breakdown` (files: src/pages/Breakdown.tsx)
-- 0012: 미지급 분석 입력 페이지 `/check` (files: src/pages/Check.tsx)
-- 0013: 미지급 분석 결과 페이지 `/check/result` (리워드 광고 게이트) (files: src/pages/CheckResultCore.tsx, src/pages/CheckResultAd.tsx)
-- 0014: [부가] 기록 목록 페이지 `/records` (files: src/pages/Records.tsx)
 - 0015: [부가] 근무지 목록·등록·수정 페이지 `/workplace` (files: src/pages/Workplace.tsx, src/pages/WorkplaceForm.tsx)
 - 0016: [부가] 온보딩 `/onboarding` · 404 페이지 (files: src/pages/Onboarding.tsx, src/pages/NotFound.tsx)
 - 0017: 라우팅 배선 + 전역 Provider (진입점 소유) (files: src/App.tsx)
 - 0018: 광고·햅틱 헬퍼 컴포넌트 + 최종 UX 폴리시 (files: src/components/MonthNav.tsx, src/components/LegalNotice.tsx, src/hooks/useHaptic.ts)
-- heal-1-02: 기록 입력 페이지 `/record/new` 구현 (files: src/pages/RecordNew.tsx)
 - heal-1-01: 라우팅 공백 복구 — 미구현 페이지 플레이스홀더 + App.tsx 전체 Route 배선 (files: src/App.tsx, src/pages/RecordNew.tsx, src/pages/RecordEdit.tsx, src/pages/Workplace.tsx, src/pages/WorkplaceForm.tsx, src/pages/Onboarding.tsx, src/pages/NotFound.tsx)
+- heal-1-02: 기록 입력 페이지 `/record/new` 구현 (files: src/pages/RecordNew.tsx)
 
 ## Available exports from existing files
 // src/App.tsx
@@ -313,6 +296,10 @@ export function Card({
 
 // src/components/CountUp.tsx
 export function CountUp({
+
+// src/components/DisclaimerGate.tsx
+export function DisclaimerGate() {
+export default DisclaimerGate;
 
 // src/components/FloatingTabBar.tsx
 export type TabItem = {
@@ -349,13 +336,7 @@ export function SafeIcon({ name, alt }: { name: string; alt?: string }) {
 export function ScreenScaffold({
 
 // src/components/Sparkline.tsx
-export function Sparkline({
-
-// src/components/StateView.tsx
-export function EmptyState({
-export function LoadingState({
-
-/
+export function Spa
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 
