@@ -4,7 +4,6 @@ import { Top, Paragraph, Spacing, Button } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { Card } from '@/components/Card';
 import { TossRewardAd } from '@/components/TossRewardAd';
-import { AdSlot } from '@/components/AdSlot';
 import { LoadingState } from '@/components/StateView';
 import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
 import { analyzePay, isUnlocked, type PayAnalysisResult } from '@/lib/analysis';
@@ -170,19 +169,11 @@ function UnlockedResult({
   }, []);
 
   return (
-    <>
-      <CheckResultCore
-        actualPaidAmount={actualPaidAmount}
-        payroll={payroll}
-        analysis={analysis}
-        onViewRecords={onViewRecords}
-      />
-
-      <Spacing size={16} />
-
-      <AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID ?? ''} />
-
-      <Spacing size={16} />
-    </>
+    <CheckResultCore
+      actualPaidAmount={actualPaidAmount}
+      payroll={payroll}
+      analysis={analysis}
+      onViewRecords={onViewRecords}
+    />
   );
 }

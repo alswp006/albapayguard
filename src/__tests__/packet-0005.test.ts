@@ -220,20 +220,21 @@ describe("급여 계산 엔진 ① 일별 계산 (순수 함수)", () => {
       expect(result!.total).toBe(103200); // basePay만
     });
 
-    it("AC-4: 09:00~21:00·break60·5인이상 → 야근(초과근로) 계산", () => {
+    it("AC-4/spec F3 AC-5: 09:00~21:00·break60·5인이상·wage10320 → 연장가산(추가 0.5배)만 계산", () => {
       const result = calcDaily(
         { startTime: "09:00", endTime: "21:00", breakMinutes: 60 },
-        { wage: 3440, isFiveOrMore: true }
+        { wage: 10320, isFiveOrMore: true }
       );
 
       expect(result).not.toBeNull();
       expect(result!.workedMinutes).toBe(660); // (21:00-09:00)*60 - 60 = 660
-      // basePay = floor(480/60 * 3440) = 8 * 3440 = 27520
-      expect(result!.basePay).toBe(27520);
+      // basePay = floor(660/60 * 10320) = 113520 (실근로시간 전체 기준, 8h 캡 없음)
+      expect(result!.basePay).toBe(113520);
       expect(result!.nightMinutes).toBe(0); // 21:00 < 22:00
       expect(result!.overtimeMinutes ?? 0).toBe(180); // 660 - 480 = 180
-      expect(result!.overtimePay ?? 0).toBe(15480); // floor(180/60 * 3440 * 1.5) = 15480
-      expect(result!.total).toBe(43000); // 27520 + 15480
+      // overtimePay = floor(180/60 * 10320 * 0.5) = 15480 (spec F3 AC-5 그대로)
+      expect(result!.overtimePay ?? 0).toBe(15480);
+      expect(result!.total).toBe(129000); // 113520 + 15480
     });
 
     it("AC-5-4: startTime 파싱 실패 ('abc') → null 반환, throw 없음, console.error 없음", () => {

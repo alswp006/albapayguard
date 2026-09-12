@@ -235,17 +235,19 @@ export default function Home() {
           </Card>
           <Spacing size={12} />
           <Card testId="pay-composition-card">
-            <Paragraph.Text typography="t6">기본급</Paragraph.Text>
-            <Spacing size={4} />
-            <MiniBar ratio={ratios.base} testId="pay-composition-bar-base" />
-            <Spacing size={12} />
-            <Paragraph.Text typography="t6">주휴수당</Paragraph.Text>
-            <Spacing size={4} />
-            <MiniBar ratio={ratios.weeklyHoliday} testId="pay-composition-bar-weekly" />
-            <Spacing size={12} />
-            <Paragraph.Text typography="t6">가산수당</Paragraph.Text>
-            <Spacing size={4} />
-            <MiniBar ratio={ratios.extra} testId="pay-composition-bar-extra" />
+            <div data-testid="pay-composition-bar">
+              <Paragraph.Text typography="t6">기본급</Paragraph.Text>
+              <Spacing size={4} />
+              <MiniBar ratio={ratios.base} testId="pay-composition-bar-base" />
+              <Spacing size={12} />
+              <Paragraph.Text typography="t6">주휴수당</Paragraph.Text>
+              <Spacing size={4} />
+              <MiniBar ratio={ratios.weeklyHoliday} testId="pay-composition-bar-weekly" />
+              <Spacing size={12} />
+              <Paragraph.Text typography="t6">가산수당</Paragraph.Text>
+              <Spacing size={4} />
+              <MiniBar ratio={ratios.extra} testId="pay-composition-bar-extra" />
+            </div>
           </Card>
         </>
       ) : (

@@ -118,7 +118,7 @@ export function calcNightMinutes(
  */
 const REGULAR_MINUTES_CAP = 8 * 60;
 const NIGHT_PREMIUM = 0.5;
-const OVERTIME_PREMIUM = 1.5;
+const OVERTIME_PREMIUM = 0.5;
 
 export function calcDaily(
   record: WorkRecord,
@@ -150,10 +150,11 @@ export function calcDaily(
     };
   }
 
-  const regularMinutes = Math.min(workedMinutes, REGULAR_MINUTES_CAP);
   const overtimeMinutes = Math.max(workedMinutes - REGULAR_MINUTES_CAP, 0);
 
-  const basePay = Math.floor((regularMinutes * wage) / 60);
+  // spec.md 계산 규칙: 기본급은 실근로시간 전체에 대해 지급하고, 연장가산은
+  // 8h 초과분에 대한 추가 0.5배 할증만 더한다(1.5배 전체 대체가 아님).
+  const basePay = Math.floor((workedMinutes * wage) / 60);
   const overtimePay = Math.floor((overtimeMinutes * wage * OVERTIME_PREMIUM) / 60);
   const nightPay = Math.floor((nightMinutesRaw * wage * NIGHT_PREMIUM) / 60);
   const holidayPay = 0;

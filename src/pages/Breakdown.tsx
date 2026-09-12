@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Top, Paragraph, Spacing, ListRow, Button, Badge, Asset } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { Card } from '@/components/Card';
+import { DisclaimerGate } from '@/components/DisclaimerGate';
 import { LegalNotice } from '@/components/LegalNotice';
 import { Amount } from '@/components/Amount';
 import { MiniBar } from '@/components/MiniBar';
@@ -126,9 +127,12 @@ export default function Breakdown() {
   const surchargeRatio = gross > 0 ? surchargeTotal / gross : 0;
   const tax = payroll.gross - payroll.net;
   const showFiveNotice = !workplace?.isFiveOrMore;
+  const isFreelanceTax = workplace?.taxType === 'freelance3_3';
+  const wageGap = workplace ? payroll.minimumWage - workplace.hourlyWage : 0;
 
   return (
     <ScreenScaffold top={<Top title={<Top.TitleParagraph>급여 상세</Top.TitleParagraph>} />}>
+      <DisclaimerGate />
       <Card testId="breakdown-total-card">
         <Paragraph.Text typography="st6">{`${year}년 ${month}월 실수령액`}</Paragraph.Text>
         <Spacing size={4} />
@@ -193,11 +197,19 @@ export default function Breakdown() {
             right={<Amount value={tax} unit="원" testId="breakdown-amount-tax" />}
           />
         </div>
-        <div data-testid="breakdown-item-net">
-          <ListRow
-            contents={<ListRow.Texts type="1RowTypeA" top="실수령액" />}
-            right={<Amount value={payroll.net} unit="원" testId="breakdown-amount-net" />}
-          />
+        <div data-testid="net-pay-row">
+          <div data-testid="breakdown-item-net">
+            <ListRow
+              contents={
+                isFreelanceTax ? (
+                  <ListRow.Texts type="2RowTypeA" top="세후 예상" bottom="사업소득세 3.3% 공제 기준" />
+                ) : (
+                  <ListRow.Texts type="1RowTypeA" top="실수령액" />
+                )
+              }
+              right={<Amount value={payroll.net} unit="원" testId="breakdown-amount-net" />}
+            />
+          </div>
         </div>
       </Card>
 
@@ -239,19 +251,20 @@ export default function Breakdown() {
       )}
 
       {payroll.isBelowMinimumWage && (
-        <>
+        <div data-testid="minimum-wage-warning">
           <Card testId="breakdown-minwage-warning">
             <Paragraph.Text typography="st6">시급이 최저임금보다 낮아요</Paragraph.Text>
             <Spacing size={4} />
             <Paragraph.Text typography="st12">
-              {`${year}년 최저임금 ${formatNumber(payroll.minimumWage)}원 기준`}
+              {`${year}년 최저임금 ${formatNumber(payroll.minimumWage)}원보다 ${formatNumber(wageGap)}원 낮아요`}
             </Paragraph.Text>
             <Spacing size={8} />
-            <Paragraph.Text typography="st12">부족액</Paragraph.Text>
-            <Amount value={payroll.minimumWageShortfall} unit="원" testId="breakdown-min-wage-shortfall" />
+            <Paragraph.Text typography="st12">
+              {`부족액 ${formatNumber(payroll.minimumWageShortfall)}원`}
+            </Paragraph.Text>
           </Card>
           <Spacing size={16} />
-        </>
+        </div>
       )}
 
       <Button variant="fill" display="block" onClick={handleAnalyze}>

@@ -1,7 +1,9 @@
-import { Paragraph, Spacing, ListRow, Button } from '@toss/tds-mobile';
+import { Paragraph, Spacing, ListRow, Button, Badge } from '@toss/tds-mobile';
 import { Card } from '@/components/Card';
 import { Amount } from '@/components/Amount';
+import { MiniBar } from '@/components/MiniBar';
 import { SummaryHero } from '@/components/SummaryHero';
+import { DisclaimerGate } from '@/components/DisclaimerGate';
 import { LegalNotice } from '@/components/LegalNotice';
 import { formatNumber } from '@/lib/utils';
 import type { PayAnalysisResult } from '@/lib/analysis';
@@ -19,14 +21,36 @@ export interface CheckResultCoreProps {
  * 광고 게이트(TossRewardAd)와 PayCheck 저장은 이 컴포넌트를 감싸는 상위(CheckResultAd)의 몫이다.
  */
 export function CheckResultCore({ actualPaidAmount, payroll, analysis, onViewRecords }: CheckResultCoreProps) {
+  const compareRatio = payroll.net > 0 ? actualPaidAmount / payroll.net : 0;
+
   return (
     <>
+      <DisclaimerGate />
+      <Card testId="compare-card">
+        <ListRow
+          contents={<ListRow.Texts type="1RowTypeA" top="계산 예상액" />}
+          right={<Amount value={payroll.net} unit="원" />}
+        />
+        <ListRow
+          contents={<ListRow.Texts type="1RowTypeA" top="실지급액" />}
+          right={<Amount value={actualPaidAmount} unit="원" />}
+        />
+        <Spacing size={8} />
+        <MiniBar ratio={compareRatio} testId="compare-ratio-bar" />
+      </Card>
+
+      <Spacing size={16} />
+
       <SummaryHero
         testId="diff-hero"
         label={analysis.isUnderpaid ? '덜 받았을 수 있어요' : '정상 지급으로 보여요'}
-        value={<Amount value={Math.abs(analysis.diff)} unit="원" typography="t1" />}
+        value={<Amount value={Math.abs(analysis.diff)} unit="원" typography="t2" />}
         caption={`계산 ${formatNumber(payroll.net)}원 · 실지급 ${formatNumber(actualPaidAmount)}원`}
       />
+      <Spacing size={8} />
+      <Badge size="small" variant="weak" color={analysis.isUnderpaid ? 'red' : 'blue'}>
+        {analysis.isUnderpaid ? '미지급 의심' : '정상 지급'}
+      </Badge>
 
       <Spacing size={16} />
 
