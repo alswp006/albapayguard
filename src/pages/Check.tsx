@@ -1,8 +1,9 @@
-import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Top, Paragraph, Spacing, TextField, Button, Asset, Toast } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { Card } from '@/components/Card';
+import { ChipButton } from '@/components/ChipButton';
 import { Amount } from '@/components/Amount';
 import { EmptyState, LoadingState } from '@/components/StateView';
 import { useAppData, useMonthlyPayroll } from '@/hooks/useAppData';
@@ -39,42 +40,6 @@ function formatMonthLabel(yearMonth: string): string {
 function parseAmount(display: string): number {
   const digits = display.replace(/[^0-9]/g, '');
   return digits === '' ? NaN : Number(digits);
-}
-
-/** 근무지/월 선택용 커스텀 칩 — TDS Chip은 컨테이너(ChipItem이 실제 선택 단위)라 단일 선택 버튼엔 과함 */
-function ChipButton({
-  children,
-  selected,
-  onClick,
-  testId,
-}: {
-  children: ReactNode;
-  selected: boolean;
-  onClick: () => void;
-  testId: string;
-}) {
-  return (
-    <button
-      type="button"
-      data-testid={testId}
-      aria-pressed={selected}
-      onClick={onClick}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 36,
-        padding: '0 14px',
-        borderRadius: 999,
-        flexShrink: 0,
-        border: selected ? 'none' : '1px solid var(--adaptiveGrey200)',
-        backgroundColor: selected ? 'var(--adaptiveBlue500)' : 'var(--adaptiveLayeredBackground)',
-        color: selected ? 'var(--adaptiveGrey50)' : 'var(--adaptiveGrey700)',
-      }}
-    >
-      <Paragraph.Text typography="st5">{children}</Paragraph.Text>
-    </button>
-  );
 }
 
 export default function Check() {

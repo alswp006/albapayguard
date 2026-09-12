@@ -43,6 +43,18 @@ async function seed(page: Page): Promise<void> {
           createdAt: "2026-01-01T00:00:00.000Z",
           updatedAt: "2026-01-01T00:00:00.000Z",
         },
+        // 근무지 2곳 — 근무지 전환 칩(홈/기록/분석/기록 수정)이 실제로 그려진 샷을 본다.
+        {
+          id: "wp-2",
+          name: "편의점 야간",
+          hourlyWage: 12000,
+          isFiveOrMore: false,
+          payday: 10,
+          taxType: "freelance3_3",
+          colorToken: "green",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
       ]),
     );
     // /breakdown이 빈 상태가 아니라 실제 항목 내역을 렌더하도록 이번 달 기록 시드

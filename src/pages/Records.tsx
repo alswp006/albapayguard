@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Top, ListRow, Badge, Paragraph, Spacing, Button, AlertDialog, Toast, Asset } from '@toss/tds-mobile';
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { Card } from '@/components/Card';
+import { ChipButton } from '@/components/ChipButton';
 import { Amount } from '@/components/Amount';
 import { EmptyState, LoadingState } from '@/components/StateView';
 import { AdSlot } from '@/components/AdSlot';
@@ -47,40 +48,6 @@ function formatWorkedDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return mins > 0 ? `${hours}시간 ${mins}분` : `${hours}시간`;
-}
-
-/** 근무지/월 선택용 커스텀 칩 — TDS Chip은 컨테이너(ChipItem이 실제 선택 단위)라 단일 선택 버튼엔 과함 */
-function ChipButton({
-  children,
-  selected,
-  onClick,
-}: {
-  children: ReactNode;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 36,
-        padding: '0 14px',
-        borderRadius: 999,
-        flexShrink: 0,
-        border: selected ? 'none' : '1px solid var(--adaptiveGrey200)',
-        backgroundColor: selected ? 'var(--adaptiveBlue500)' : 'var(--adaptiveLayeredBackground)',
-        color: selected ? 'var(--adaptiveGrey50)' : 'var(--adaptiveGrey700)',
-      }}
-    >
-      <Paragraph.Text typography="st5">{children}</Paragraph.Text>
-    </button>
-  );
 }
 
 export default function Records() {

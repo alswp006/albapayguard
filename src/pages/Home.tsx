@@ -8,6 +8,7 @@ import { CountUp } from '@/components/CountUp';
 import { Sparkline } from '@/components/Sparkline';
 import { MiniBar } from '@/components/MiniBar';
 import { Card } from '@/components/Card';
+import { ChipButton } from '@/components/ChipButton';
 import { EmptyState, LoadingState } from '@/components/StateView';
 import { RecentRecordsCard } from '@/components/RecentRecordsCard';
 import { AddRecordCTA } from '@/components/AddRecordCTA';
@@ -162,42 +163,18 @@ export default function Home() {
 
       <Spacing size={12} />
 
-      {/* 근무지 전환 — TDS Chip은 testId를 넘기지 못해 adaptive 토큰 기반 커스텀 칩으로 둔다 */}
+      {/* 근무지 전환 — TDS Chip은 testId를 넘기지 못해 공용 ChipButton(커스텀 칩)을 쓴다 */}
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
-        {workplaces.map((w) => {
-          const isActive = w.id === activeWorkplaceId;
-          return (
-            <button
-              key={w.id}
-              type="button"
-              data-testid={`workplace-chip-${w.id}`}
-              aria-pressed={isActive}
-              onClick={() => handleSelectWorkplace(w.id)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: 44,
-                borderRadius: 999,
-                flexShrink: 0,
-                border: isActive ? 'none' : '1px solid var(--adaptiveGrey200)',
-                backgroundColor: isActive
-                  ? 'var(--adaptiveBlue500)'
-                  : 'var(--adaptiveLayeredBackground)',
-              }}
-            >
-              <span
-                style={{
-                  padding: '0 16px',
-                  color: isActive ? 'var(--adaptiveGrey50)' : 'var(--adaptiveGrey700)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <Paragraph.Text typography="st7">{w.name}</Paragraph.Text>
-              </span>
-            </button>
-          );
-        })}
+        {workplaces.map((w) => (
+          <ChipButton
+            key={w.id}
+            testId={`workplace-chip-${w.id}`}
+            selected={w.id === activeWorkplaceId}
+            onClick={() => handleSelectWorkplace(w.id)}
+          >
+            {w.name}
+          </ChipButton>
+        ))}
       </div>
 
       <Spacing size={16} />

@@ -4,6 +4,7 @@ import { AlertDialog, Asset, Button, ListRow, Paragraph, Spacing, Switch, TextFi
 import { ScreenScaffold } from '@/components/ScreenScaffold';
 import { SubmitFooter } from '@/components/BottomCTA';
 import { Card } from '@/components/Card';
+import { ChipButton } from '@/components/ChipButton';
 import { EmptyState, LoadingState } from '@/components/StateView';
 import { useAppData } from '@/hooks/useAppData';
 import { useHaptic } from '@/hooks/useHaptic';
@@ -59,6 +60,10 @@ export default function RecordForm() {
   const existing = isEdit ? records.find((r) => r.id === id) : undefined;
   const newState = location.state as RouteState['/record/new'];
 
+  // 근무지는 시급·5인 이상 여부를 통해 예상 일급에 직접 들어간다 — 수정 화면에서 무엇으로
+  // 계산 중인지 보이지 않으면 사용자는 금액이 왜 그런지 알 수 없다. 빈 값으로 시작해
+  // (저장소 로딩 전에는 workplaces가 비어 있다) 아래 effect에서 확정한다.
+  const [workplaceId, setWorkplaceId] = useState(() => existing?.workplaceId ?? newState?.workplaceId ?? '');
   const [date, setDate] = useState(() => existing?.date ?? newState?.date ?? todayISODate());
   const [startTime, setStartTime] = useState(() => existing?.startTime ?? '');
   const [endTime, setEndTime] = useState(() => existing?.endTime ?? '');
@@ -81,8 +86,17 @@ export default function RecordForm() {
 
   // 수정 모드에서 최초 마운트 시 AppDataProvider가 아직 로딩 중이었다면(records=[])
   // 데이터 도착 후 한 번만 폼 필드를 채운다 — 그 뒤 사용자 입력을 덮어쓰지 않는다.
+  // 근무지 확정 — 기록의 근무지 > 신규 진입 state > 첫 근무지 순. 사용자가 한 번이라도
+  // 고르면(workplaceId가 비지 않음) 다시 덮어쓰지 않는다.
+  const defaultWorkplaceId = existing?.workplaceId ?? newState?.workplaceId ?? workplaces[0]?.id ?? '';
+  useEffect(() => {
+    if (workplaceId || !defaultWorkplaceId) return;
+    setWorkplaceId(defaultWorkplaceId);
+  }, [workplaceId, defaultWorkplaceId]);
+
   useEffect(() => {
     if (hydrated || !existing) return;
+    setWorkplaceId(existing.workplaceId);
     setDate(existing.date);
     setStartTime(existing.startTime);
     setEndTime(existing.endTime);
@@ -125,8 +139,9 @@ export default function RecordForm() {
     );
   }
 
-  const workplaceId = existing?.workplaceId ?? newState?.workplaceId ?? workplaces[0]?.id ?? '';
-  const workplace = workplaces.find((w) => w.id === workplaceId);
+  // 확정 effect가 돌기 전 첫 렌더에서도 계산·저장이 기본 근무지로 동작하도록 즉시 보정한다.
+  const selectedWorkplaceId = workplaceId || defaultWorkplaceId;
+  const workplace = workplaces.find((w) => w.id === selectedWorkplaceId);
   const breakMinutesNumber = Number(breakMinutes) || 0;
   const daily = workplace
     ? calcDaily(
@@ -140,7 +155,7 @@ export default function RecordForm() {
     if (submitting) return;
     setError(null);
     const input = {
-      workplaceId,
+      workplaceId: selectedWorkplaceId,
       date,
       startTime,
       endTime,
@@ -161,7 +176,7 @@ export default function RecordForm() {
 
     const duplicate = await isDuplicateRecord({
       id: isEdit ? id : undefined,
-      workplaceId,
+      workplaceId: selectedWorkplaceId,
       date,
       startTime,
     });
@@ -187,6 +202,11 @@ export default function RecordForm() {
 
     haptic('success');
     navigate(ROUTES.records, { state: { toast: '저장했어요' } satisfies RouteState['/records'] });
+  }
+
+  function handleSelectWorkplace(nextId: string) {
+    haptic('tickWeak');
+    setWorkplaceId(nextId);
   }
 
   function handleToggleHoliday() {
@@ -227,6 +247,46 @@ export default function RecordForm() {
       }
       bottom={<SubmitFooter label="저장하기" onClick={handleSave} loading={submitting} />}
     >
+      {/* 어느 근무지의 기록인지 먼저 보여준다 — 시급이 곧 아래 예상 일급의 근거다. */}
+      <ListRow
+        contents={
+          <ListRow.Texts
+            type="2RowTypeA"
+            top="근무지"
+            bottom={
+              workplace
+                ? `${workplace.name} · 시급 ${formatNumber(workplace.hourlyWage)}원`
+                : '등록된 근무지가 없어요'
+            }
+          />
+        }
+      />
+      {workplaces.length > 1 && (
+        <>
+          <Spacing size={8} />
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }} data-testid="record-workplace-chips">
+            {workplaces.map((w) => (
+              <ChipButton
+                key={w.id}
+                testId={`record-workplace-chip-${w.id}`}
+                selected={w.id === selectedWorkplaceId}
+                onClick={() => handleSelectWorkplace(w.id)}
+              >
+                {w.name}
+              </ChipButton>
+            ))}
+          </div>
+        </>
+      )}
+      {workplaces.length === 0 && (
+        <>
+          <Spacing size={8} />
+          <Button variant="weak" display="block" onClick={() => navigate(ROUTES.workplaceNew)}>
+            근무지 등록하기
+          </Button>
+        </>
+      )}
+      <Spacing size={12} />
       <TextField
         variant="line"
         label="날짜"
