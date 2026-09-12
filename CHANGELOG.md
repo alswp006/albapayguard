@@ -1,8 +1,8 @@
 # Changelog
 
-## [0.1.0] - 2026-09-11
+## [0.1.0] - 2026-09-12
 
-15/18 packets completed.
+19/21 packets completed.
 
 ### Added
 - feat: 엔티티 타입·상수·RouteState 정의 (packet 0001)
@@ -18,5 +18,12 @@
 - feat: 미지급 분석 입력 페이지 `/check` (packet 0012)
 - feat: 미지급 분석 결과 페이지 `/check/result` (리워드 광고 게이트) (packet 0013)
 - feat: [부가] 기록 목록 페이지 `/records` (packet 0014)
+- feat: [부가] 근무지 목록·등록·수정 페이지 `/workplace` (packet 0015)
+- feat: [부가] 온보딩 `/onboarding` · 404 페이지 (packet 0016)
 - feat: 라우팅 배선 + 전역 Provider (진입점 소유) (packet 0017)
 - feat: 광고·햅틱 헬퍼 컴포넌트 + 최종 UX 폴리시 (packet 0018)
+- feat: 라우팅 공백 복구 — 미구현 페이지 플레이스홀더 + App.tsx 전체 Route 배선 (packet heal-1-01)
+- feat: 기록 입력 페이지 `/record/new` 구현 (packet heal-1-02)
+
+### Known Issues
+- 기록 입력/수정 페이지 `/record/new`, `/record/:id/edit` (packet 0010) — skipped
