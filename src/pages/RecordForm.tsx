@@ -171,6 +171,7 @@ export default function RecordForm() {
       return;
     }
 
+    haptic('success');
     navigate('/records', { state: { toast: '저장했어요' } satisfies RouteState['/records'] });
   }
 

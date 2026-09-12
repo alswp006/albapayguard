@@ -218,6 +218,7 @@ export interface MonthlyPayroll {
     Home.tsx
     NotFound.tsx
     Onboarding.tsx
+    RecordEdit.tsx
     RecordForm.tsx
     Records.tsx
     Workplace.tsx
@@ -240,7 +241,7 @@ export interface MonthlyPayroll {
 - storage.ts: export function getItem<T>(key: string): T | null; export function setItem<T>(key: string, value: T): void; export function removeItem(key: string): void; export interface WriteRawResult; export function consumeCorruptionFlag(): boolean; export function writeRaw(key: string, value: unknown): WriteRawResult; export function readRaw<T>( key: string, fallback: T, isValid: (data: unknown) => data is T ): T; export function isWorkplaceArray(data: unknown): data is Workplace[]
 - types.ts: export type TaxType = 'none' | 'freelance3_3'; export interface Workplace; export interface WorkRecord; export type SuspectKind = 'weeklyHoliday' | 'night' | 'overtime' | 'holiday' | 'minimumWage'; export interface PaySuspect; export interface PayCheck; export interface PayAnalysis; export interface AppSettings
 - utils.ts: export function cn(...classes: (string | boolean | undefined | null)[]): string; export function formatNumber(n: number): string; export function formatCurrency(n: number, currency = 'KRW'): string
-- workplaceIntegrity.ts: export type DeleteWorkplaceCascadeResult = |; export async function resolveActiveWorkplaceId(): Promise<string | null>; export async function countLinked(workplaceId: string): Promise<number>; export async function canAddWorkplace(): Promise<boolean>; export async function deleteWorkplaceCascade...
+- workplaceIntegrity.ts: export type DeleteWorkplaceCascadeResult = |; export async function resolveActiveWorkplaceId(): Promise<string | null>; export async function countLinked(workplaceId: string): Promise<number>; export async function canAddWorkplace(): Promise<boolean>; export async function del...
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
@@ -263,6 +264,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0018: 광고·햅틱 헬퍼 컴포넌트 + 최종 UX 폴리시 (files: src/components/MonthNav.tsx, src/components/LegalNotice.tsx, src/hooks/useHaptic.ts)
 - heal-1-01: 라우팅 공백 복구 — 미구현 페이지 플레이스홀더 + App.tsx 전체 Route 배선 (files: src/App.tsx, src/pages/RecordNew.tsx, src/pages/RecordEdit.tsx, src/pages/Workplace.tsx, src/pages/WorkplaceForm.tsx, src/pages/Onboarding.tsx, src/pages/NotFound.tsx)
 - heal-1-02: 기록 입력 페이지 `/record/new` 구현 (files: src/pages/RecordNew.tsx)
+- heal-1-03: 기록 수정 페이지 `/record/:id/edit` 구현 (files: src/pages/RecordEdit.tsx)
 
 ## Available exports from existing files
 // src/App.tsx
